@@ -12,13 +12,13 @@ from lib.robot_driver import RobotDriver
 
 
 # --- CONFIGURATION ---
-SERIAL_PORT = 'COM7'
+SERIAL_PORT = '/dev/ttyUSB0'
 BAUD_RATE = 115200
 HOST_IP = "0.0.0.0"
 
 # --- LOGGING SETUP ---
 # Options: logging.DEBUG (Show everything), logging.INFO (Show important events), logging.WARNING (Show only errors)
-LOG_LEVEL = logging.INFO 
+LOG_LEVEL = logging.DEBUG 
 
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -74,7 +74,7 @@ def main():
             # Heartbeat: Logged as DEBUG. Won't show in INFO mode.
             # We keep the % 100 check so even in Debug mode it prints every 2s, not 50Hz.
             if tick_count % 100 == 0:
-                logger.debug(f"Heartbeat | Time: {state.timestamp} | X: {state.x:.2f} | Y: {state.y:.2f}")
+                logger.debug(f"Heartbeat | Time: {state.timestamp} | X: {state.x:.2f} | Y: {state.y:.2f} | Theta: {state.theta:.2f} | us_l : {state.us_l:.2f} | us_r: {state.us_r:.2f}| IR: {state.ir:.2f}")
             tick_count += 1
 
             # --- B. Handle Commands (Non-Blocking) ---
@@ -96,14 +96,14 @@ def main():
                 pass
 
             # --- C. Safety Watchdog ---
-            if time.time() - last_cmd_time > 1.0:
-                if abs(state.v) > 0.01 or abs(state.w) > 0.01:
-                    # Warnings show up even in INFO mode
-                    logger.warning("Watchdog Timeout (>1.0s). Triggering Emergency Stop!")
-                    driver.send_velocity(0, 0)
-                    last_cmd_time = time.time() 
+            # if time.time() - last_cmd_time > 1.0:
+            #     if abs(state.v) > 0.01 or abs(state.w) > 0.01:
+            #         # Warnings show up even in INFO mode
+            #         logger.warning("Watchdog Timeout (>1.0s). Triggering Emergency Stop!")
+            #         driver.send_velocity(0, 0)
+            #         last_cmd_time = time.time() 
 
-            time.sleep(0.02)
+            time.sleep(0.02) # 50hz
 
     except KeyboardInterrupt:
         logger.info("Stopping Service...")

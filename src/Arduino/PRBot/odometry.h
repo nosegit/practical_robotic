@@ -34,6 +34,7 @@ public:
   // --- Helpers ---
   Pose getPose() { return _pose; }; // Get the current pose
   void reset() { _pose = {0,0,0}; };     // Reset the pose (x, y, theta) to zero
+  void set_theta(float theta) { _pose.theta = theta; } // force set theta.
   float meterToTick(float input);  // convert m/s to ticks/s
   void printPose();
 
@@ -71,8 +72,8 @@ private:
 
   // --- IMU ---
   float _gyro_bias;
-  const float GYRO_DEADBAND_RADS = 1 * ( PI / 180.0 );
-  const float GYRO_SCALE = 1.14; // 360/316
+  const float GYRO_DEADBAND_RADS = 2 * ( PI / 180.0 );
+  const float GYRO_SCALE = 1.11875; // 360/316
 
   // --- 2. Forward Kinematics (Odometry) ---
   // Takes the *total* accumulated encoder ticks...

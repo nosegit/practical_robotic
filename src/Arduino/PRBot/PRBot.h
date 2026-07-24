@@ -22,10 +22,10 @@
 #define MOTORENCODERB P1_12
 
 #define WHEELRADIUS 0.024       // 2.4cm
-#define WHEELSEPARATION 0.1975  // 19.75 cm
+#define WHEELSEPARATION 0.20  // 19.75 cm //0.19996875
 #define TICKPERREVOLUTION 1788  // 298*6
 
-#define ENABLEUSBSERIAL 1
+#define ENABLEUSBSERIAL 0
 #define LEDPIN P0_13
 
 class PRBOT{
@@ -37,6 +37,10 @@ public:
 private:
 
   mbed::DigitalOut _myled;
+
+  /* Driver */
+  void Driver_loop();
+  rtos::Thread _thread_driver;
 
   /* Sensor variables */
   ULTRASONIC    _ultrasonic[2];

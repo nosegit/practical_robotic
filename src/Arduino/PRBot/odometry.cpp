@@ -61,8 +61,10 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   // --- 3. SENSOR FUSION (Complementary Filter) ---
   // We fuse the CHANGES in angle (Deltas), not the absolute angle.
   // Alpha is usually 0.95 to 0.98 (Trust Gyro for fast turns, Encoder for slow drift)
-  // const float ALPHA = 0.98; 
-  const float ALPHA = 0.98; 
+  const float ALPHA = 0.99; 
+  // const float ALPHA = 0.0; 
+  // const float ALPHA = 1.0; 
+
 
   float delta_theta_fused = (ALPHA * delta_theta_gyro) + ((1.0 - ALPHA) * delta_theta_enc);
 
@@ -132,10 +134,19 @@ void ODOMETRY::loop(){
     // If the rotation is extremely slow or encoder not moving, force it to exactly 0.0
     long diff_L = ticks_L - _last_ticks_left;
     long diff_R = ticks_R - _last_ticks_right;
-    if ( (abs(gz_rads) < GYRO_DEADBAND_RADS) || ((diff_L == 0) && (diff_R == 0))  ) {
+    // if ( (abs(gz_rads) < GYRO_DEADBAND_RADS) || ((diff_L == 0) && (diff_R == 0))  ) {
+    //     gz_rads = 0.0;
+    // }
+
+    // if ( (abs(gz_rads) < GYRO_DEADBAND_RADS)) {
+    //     gz_rads = 0.0;
+    // }
+
+    if ( ((diff_L == 0) && (diff_R == 0))  ) {
         gz_rads = 0.0;
     }
-    
+
+
     // Calculate precise DT
     unsigned long current_micros = micros();
     float dt = (current_micros - _prev_micros) / 1000000.0;

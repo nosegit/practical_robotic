@@ -22,9 +22,11 @@ void PRBOT::setup(){
 #endif
 
   _motor.Begin();
-  _communication.begin(&_robotstate, &_mySerial);
   _odometry.Begin(&_motor, &_robotstate);
+  _communication.begin(&_robotstate, &_mySerial);
+
   _thread_sensor.start(mbed::callback(this,&PRBOT::Sensor_loop));
+  _thread_driver.start(mbed::callback(this,&PRBOT::Driver_loop));
 
   _myled = 1;
 
@@ -42,6 +44,28 @@ void PRBOT::Sensor_loop(){
                             _ultrasonic[1].Get_distance(), 
                             _infrared.Get_distance() );
 
-    rtos::ThisThread::sleep_for(100);  // 10Hz
+    rtos::ThisThread::sleep_for(33);  // 30Hz
   }
+}
+
+void PRBOT::Driver_loop(){
+  for(;;){
+    float v, w;
+    unsigned long last_time;
+    _robotstate.getTargets(v, w, last_time);
+
+    if(v == -31){ // set theta 
+      _odometry.set_theta(w); 
+    }
+    else if(v == -30){ // reset pose
+      _odometry.reset();
+    }
+    else{
+      WheelSpeeds speed = _odometry.calculateWheelSpeeds(v, w);
+      _motor.Set_speed(_odometry.meterToTick(speed.left), _odometry.meterToTick(speed.right));
+    }
+
+    rtos::ThisThread::sleep_for(33);  // 30Hz
+  }
+
 }
