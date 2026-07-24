@@ -1,0 +1,2 @@
+rsync -avz pi@192.168.50.5:/home/pi/WS/ ./
+scp -r pi@192.168.50.5:/home/pi/WS/ ./
