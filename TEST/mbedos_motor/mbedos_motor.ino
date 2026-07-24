@@ -19,15 +19,17 @@ void setup() {
   // Motor.Set_frquency(0,100);  // 100 Hz
 
   // for(int i = 0 ; i < 4 ; i++){
-  //   motor_test_basic();
+    // motor_test_basic();
   //   delay(500);
   // }
 
+  motor_test_basic2();
+
   // motor_test_10_cm();
-  for(int i = 0 ; i < 4; i++){
-    motor_test_90_degree();
-    delay(500);
-  }
+  // for(int i = 0 ; i < 4; i++){
+  //   motor_test_90_degree();
+  //   delay(500);
+  // }
   // motor_test_single_revolution();
 
 }
@@ -93,6 +95,7 @@ void motor_test_basic(){
 
     // Motor.Print_info();
 }
+
 
 #define GEAR_RATIOA 298
 #define WHEEL_REV_ENCA 2*3*GEAR_RATIOA

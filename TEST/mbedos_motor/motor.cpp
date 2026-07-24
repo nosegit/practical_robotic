@@ -42,7 +42,7 @@ void MOTOR::Set_dir(int motor, int dir){
   }
 }
 
-void MOTOR::Set_pwm(int motor, int pwm){
+void MOTOR::Set_pwm(int motor, float pwm){
   switch (motor){
     case 0: _PWMA.write(pwm < 100 ? (float)pwm/100:1); break;
     case 1: _PWMB.write(pwm < 100 ? (float)pwm/100:1); break;
@@ -123,7 +123,7 @@ void MOTOR::Print_info(){
       Serial.println(Get_encoder_cnt(i));
       Serial.print(i);
       Serial.print("speed:");
-      Serial.println(i ? _ENCODERB_SPEED, _ENCODERA_SPEED);
+      Serial.println(i ? _ENCODERB_SPEED: _ENCODERA_SPEED);
     }
   }
 }

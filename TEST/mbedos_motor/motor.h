@@ -47,7 +47,7 @@ class MOTOR{
 
   void Begin();
   void Set_dir(int motor, int dir);
-  void Set_pwm(int motor, int pwm);
+  void Set_pwm(int motor, float pwm);
   void Set_frquency(int motor, int frequency);
   float Get_speed(int motor);
   long long Get_encoder_cnt(int motor){ return motor ? _ENCODERB_CNT : _ENCODERA_CNT ;}
