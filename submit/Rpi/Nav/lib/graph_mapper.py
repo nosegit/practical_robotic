@@ -295,7 +295,7 @@ class GraphMapper:
                 if not state: continue
                 
                 ir_dist = state.get('ir', 60)
-                ir_speed = (ir_dist/(3*FRONT_STOP_DIST)) * CRUISE_SPEED # Slow down when approaching wall
+                ir_speed = (ir_dist/(2*FRONT_STOP_DIST)) * CRUISE_SPEED # Slow down when approaching wall
 
                 dx = state['x']- start_x
                 dy = state['y'] - start_y

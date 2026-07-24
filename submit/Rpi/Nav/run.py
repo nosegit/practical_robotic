@@ -29,7 +29,8 @@ if __name__ == "__main__":
     
     print("Starting Autonomous DFS Exploration...")
     try:
-        
+        bfs_path = None
+
         # 2. reset robot pose and orientation
         mapper.robot.reset_pose()               # reset robot pose to (0,0)
         time.sleep(1.0)
@@ -62,9 +63,13 @@ if __name__ == "__main__":
         reverse_path = bfs_path[::-1] # Reverse the BFS path for backtracking
         mapper.traverse_back(reverse_path)
 
+        print(f"DFS path : {[n.id for n in mapper.traveled_path]}")
+        print(f"BFS path : {bfs_path_ids}")
+        
     except KeyboardInterrupt:
         print("Exploration Stopped.")
     finally:
+
         # 5. Visualize the mapped graph
         visualizer = GraphVisualizer()
         visualizer.visualize(

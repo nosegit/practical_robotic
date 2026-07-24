@@ -36,6 +36,8 @@ submit/
 │   │   ├── camera_viewer.py            # Real-time video stream viewer
 │   │   └── lib/camera_calibration.py   # Camera intrinsic calibration tool
 │   │
+│   ├── Test/                    # Script for testing. ex, IR vs Aruco plot. 
+│   │
 │   └── Nav/                     # Navigation & maze exploration
 │       ├── run.py                      # Main autonomous exploration script
 │       └── lib/
@@ -84,10 +86,7 @@ pip install -r requirements.txt
 
 ### Critical Version Notes
 
-- **OpenCV 4.11.0.86**: Must support ArUco DICT_6X6_250 dictionary (6x6 markers)
-- **PiCamera2 0.3.21**: Requires Raspberry Pi OS (Bullseye+) with libcamera backend
-- **PyZMQ 27.1.0**: Ensure libzmq is installed: `sudo apt-get install libzmq3-dev`
-- **NumPy 1.24.2**: Compatible with Raspberry Pi 32-bit and 64-bit OS
+- **OpenCV 4.11.0.86**: for Aruco PoseEstimation using solvePnP method.
 
 ---
 

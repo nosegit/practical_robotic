@@ -111,7 +111,7 @@ class GraphVisualizer:
                 elif neighbor == "Unknown":
                     # Draw a small green dashed stub
                     dx, dy = 0, 0
-                    stub = 0.7
+                    stub = 0.5
                     if heading == 'N': dy = stub
                     elif heading == 'S': dy = -stub
                     elif heading == 'E': dx = stub
