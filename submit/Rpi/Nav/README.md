@@ -38,7 +38,7 @@ To watch the robot explore, map, and solve a 36-node maze:
 
 ### 2\. Run on Real Robot
 
-**make sure there nodes are running**
+**make sure that these nodes are running**
 - Driver/robot_service.py
 - Vision/camere_server_vid.py
 
