@@ -16,11 +16,7 @@ def main():
     try:
         # 1. Wait for Valid Data
         print("Waiting for telemetry stream...")
-        state = None
-        while state is None:
-            state = robot.get_state()
-            time.sleep(0.1)
-        
+        state = robot._wait_for_valid_state()
         print(f"Connected! Initial Pos: X={state['x']:.2f}, Y={state['y']:.2f}")
         print("Starting Pattern Routine...")
 

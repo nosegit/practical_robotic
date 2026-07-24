@@ -1,3 +1,15 @@
+''' GraphMapper Module
+    Implements Graph Mapping and DFS Exploration for a robot in a maze.
+    Key Classes:
+    - MazeNode: Represents a node in the maze graph.
+    - GraphMapper: Manages the graph, robot movement, and exploration logic.
+
+    Key Functions:
+    - create_node: Creates a new node in the graph.
+    - explore_path: Moves the robot in a direction until a wall, detecting junctions, create new nodes.
+    - run_dfs: Performs recursive depth-first search to explore the maze.
+'''
+
 import sys
 import os
 import time
@@ -10,27 +22,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from Driver.lib.robot_client import RobotClient
 from Vision.lib.camera_client import CameraClient
 
-''' GraphMapper Module
-    Implements Graph Mapping and DFS Exploration for a robot in a maze.
-    Key Classes:
-    - MazeNode: Represents a node in the maze graph.
-    - GraphMapper: Manages the graph, robot movement, and exploration logic.
-
-    Key Functions:
-    - create_node: Creates a new node in the graph.
-    - explore_path: Moves the robot in a direction until a wall, detecting junctions.
-    - run_dfs: Performs recursive depth-first search to explore the maze.
-'''
 
 # --- CONFIGURATION ---
-WALL_THRESHOLD_CM = 5.0 # 5 cm
-JUNCTION_SIZE = 0.11 
-FRONT_STOP_DIST = 9.0 # CM
-CRUISE_SPEED = 0.1 # meter/s (fix)
-ROTATE_SPEED = 0.5 # rad/s (fix)
-SENSOR_MAX_CM = 40.0
-MERGE_RADIUS = 0.15 # Meters
-LOCAL_MERGE_RADIUS = 0.01 # Meters
+WALL_THRESHOLD_CM   = 5.0   # 5 cm
+JUNCTION_SIZE       = 0.11  # meters
+FRONT_STOP_DIST     = 9.0   # CM
+CRUISE_SPEED        = 0.1   # meter/s (fix)
+ROTATE_SPEED        = 0.5   # rad/s (fix)
+SENSOR_MAX_CM       = 40.0  # CM
+MERGE_RADIUS        = 0.15  # Meters
+LOCAL_MERGE_RADIUS  = 0.01  # Meters
 
 class MazeNode:
     def __init__(self, node_id, x, y):
@@ -38,7 +39,7 @@ class MazeNode:
         self.x = x
         self.y = y
         # Pointers to other MazeNode objects
-        # 'N' (0), 'E' (-90), 'S' (180), 'W' (90) based on global map
+        # 'N' (90), 'E' (0), 'S' (-90), 'W' (180) based on global map
         # Value can be: None (Wall), "Unknown" (Unexplored), or MazeNode object
         self.neighbors = {'N': None, 'E': None, 'S': None, 'W': None}
         self.type = "Unknown" 
@@ -116,7 +117,8 @@ class GraphMapper:
         Resolves raw junction stack into valid junction positions.
         Logic:
         - Scans through the stack for matching '(' and ')' pairs.
-        - If a pair is found and the distance between them exceeds JUNCTION_SIZE,
+        - Junction valid if a pair is found and the distance between them exceeds JUNCTION_SIZE.
+            - Calculates midpoint and records as junction. 
         '''
 
         junctions = []
@@ -192,6 +194,10 @@ class GraphMapper:
             return dist, target_angle_deg
         
         dist, target_angle_deg = get_dist(from_node.x, from_node.y, to_node.x, to_node.y )
+
+        if(dist < 0.01):
+            # print("   Already at target node.")
+            return
         
         # 1. Rotate
         self.robot.rotate_to_angle(target_angle_deg, speed=ROTATE_SPEED)
@@ -221,8 +227,8 @@ class GraphMapper:
             1. prepare to explore
                 1. set heading
                 2. vision check
-                    1. get aruco distance
-                    1. check tag 5 and red object
+                    - get aruco distance
+                    - check tag 5 and red object
             2. explore forward until wall
                 1. move forward
                 2. check front wall

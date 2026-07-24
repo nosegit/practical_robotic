@@ -1,12 +1,28 @@
+"""
+CameraViewer: Real-time JPEG video stream viewer for robot camera feed via ZMQ.
+Subscribes to CameraServer on port 5558, drains buffer for latest frame, and displays in OpenCV.
+
+Features:
+  - Low-latency frame draining (consumes all buffered frames to get newest)
+  - Efficient JPEG decoding with zero-copy numpy buffer conversion
+  - Optional ZMQ CONFLATE for socket-level frame buffering
+  - Graceful shutdown on 'q' key or Ctrl+C
+
+Configuration: Set SERVER_IP to Raspberry Pi address (default: localhost)
+"""
 import zmq
 import numpy as np
 import cv2
 
 # --- CONFIGURATION ---
-SERVER_IP = "localhost" # CHANGE THIS to your Pi's IP address
+SERVER_IP = "localhost" # CHANGE THIS to Pi's IP address
 VIDEO_PORT = 5558       # Must match camera_server.py
 
 def main():
+    """
+    Main viewer loop: connect to video stream, drain buffer for latest frame, decode and display.
+    Handles graceful shutdown on 'q' key or Ctrl+C.
+    """
     print(f"Connecting to Video Stream at {SERVER_IP}:{VIDEO_PORT}...")
     
     context = zmq.Context()

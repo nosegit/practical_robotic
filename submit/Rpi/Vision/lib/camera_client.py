@@ -1,28 +1,33 @@
+"""
+CameraClient: ZMQ subscriber for receiving vision detection data from CameraServer.
+Provides high-level methods to query ArUco markers (3D pose) and colored shapes from the vision server.
+Uses non-blocking queue draining to get latest frame only, avoiding stale data accumulation.
+Supports filtering by marker ID, color, and shape type for convenient real-time vision queries.
+
+Architecture:
+  - Subscribes to "VISION" topic on port 5557 (JSON detection data)
+  - get_latest_data() drains all buffered messages to ensure current data (low latency)
+  - Methods: get_marker_pose() for 3D ArUco data, get_closest_shape() for color detection
+  - Suitable for robot navigation, target tracking, and vision-guided control
+"""
 import zmq
 import json
 import time
 
 class CameraClient:
     def __init__(self, host="127.0.0.1", port=5557):
-        """
-        Connects to the Vision Server.
-        """
+        """Initialize ZMQ subscriber and connect to Vision Server on specified host:port."""
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.SUB)
         self.socket.connect(f"tcp://{host}:{port}")
         self.socket.subscribe("VISION")
 
         self.socket.setsockopt(zmq.LINGER, 0)
-        
-        # # Try to use CONFLATE (Server side filtering), but don't rely on it entirely.
-        # try:
-        #     self.socket.setsockopt(zmq.CONFLATE, 1)
-        # except AttributeError:
-        #     self.socket.setsockopt(zmq.LINGER, 0)
 
     def get_latest_data(self, timeout=None):
         """
-        Drains the queue and returns ONLY the absolute latest vision payload.
+        Drain queue and return only the newest vision frame (non-blocking).
+        Discards old frames to minimize latency for real-time control.
         Args:
             timeout (int): Milliseconds to wait for at least one message. 
         """
@@ -56,8 +61,8 @@ class CameraClient:
 
     def get_marker_pose(self, marker_id):
         """
-        Finds a specific ArUco marker and returns its 3D pose data.
-        Returns None if the marker is not currently visible.
+        Query specific ArUco marker by ID and return its 3D pose (position, heading, distance).
+        Returns None if marker not visible in current frame.
         """
         data = self.get_latest_data(timeout=300)
         if not data or 'aruco' not in data:
@@ -69,6 +74,10 @@ class CameraClient:
         return None
     
     def get_all_marker(self):
+        """
+        Retrieve all detected ArUco markers (IDs 1-5) in current frame.
+        Returns list of marker dicts or None if no markers detected.
+        """
         arr = []
         for i in range(1,6):
             data = self.get_marker_pose(marker_id=i)
@@ -79,7 +88,8 @@ class CameraClient:
 
     def get_closest_shape(self, color=None, label=None):
         """
-        Returns the largest/closest shape matching the criteria.
+        Find largest/closest colored shape matching color and shape type filters.
+        Returns shape dict with center, area, bbox, or None if no match.
         """
         data = self.get_latest_data(timeout=100)
         if not data or 'shapes' not in data:
@@ -102,7 +112,8 @@ class CameraClient:
     
     def is_color(self, color=None):
         """
-        Returns if there is object(shape) matching  the color.
+        Check if a specific colored shape exists in current frame.
+        Returns True/False for quick boolean queries without shape details.
         """
         data = self.get_latest_data(timeout=100)
         if not data or 'shapes' not in data:

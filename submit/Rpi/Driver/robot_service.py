@@ -1,3 +1,16 @@
+"""
+RobotService: Central ZMQ-based service bridging low-level hardware driver and high-level clients.
+Architecture:
+  - Hardware Driver (lib.robot_driver): Manages USB serial communication with robot firmware
+  - ZMQ PUB Socket (port 5555): Broadcasts robot telemetry (pose, velocity, sensors) at 50 Hz
+  - ZMQ REP Socket (port 5556): Receives velocity commands from clients and replies with ACK
+  - Threading: Hardware reads run in background; main thread handles ZMQ pub/sub loop
+
+Usage:
+  1. Run this service on Raspberry Pi with robot connected
+  2. Clients connect to localhost:5555 (subscribe telemetry) and localhost:5556 (send commands)
+  3. Press Ctrl+C to gracefully shutdown all connections
+"""
 import time
 import zmq
 import json
@@ -30,6 +43,12 @@ logging.basicConfig(
 logger = logging.getLogger("RobotService")
 
 def main():
+    """
+    Main service loop: initialize hardware and ZMQ sockets, then continuously:
+    1. Publish robot state to all subscribers
+    2. Listen for and execute velocity commands from clients
+    3. Gracefully handle shutdown on Ctrl+C
+    """
     logger.info(f"Initializing Robot Service on {SERIAL_PORT}...")
     
     # 1. Start Hardware Driver
@@ -45,6 +64,7 @@ def main():
     context = zmq.Context()
     
     # Socket A: TELEMETRY (PUB)
+    # Broadcasts state to all connected clients at 50Hz
     try:
         pub = context.socket(zmq.PUB)
         pub.bind(f"tcp://{HOST_IP}:{PUB_PORT}")
@@ -54,6 +74,7 @@ def main():
         return
     
     # Socket B: COMMANDS (REP)
+    # Receives velocity commands and replies with ACK
     try:
         rep = context.socket(zmq.REP)
         rep.bind(f"tcp://{HOST_IP}:{REP_PORT}")
@@ -70,16 +91,19 @@ def main():
     try:
         while True:
             # --- A. Publish State (Continuous) ---
+            # Fetch latest state from hardware driver (thread-safe) and broadcast as JSON
             state = driver.get_state()
             pub.send_string(json.dumps(asdict(state)))
 
-            # Heartbeat: Logged as DEBUG. Won't show in INFO mode.
-            # We keep the % 100 check so even in Debug mode it prints every 2s, not 50Hz.
+            # Heartbeat logging (DEBUG level): prints every 100 ticks (~2 seconds at 50Hz)
+            # Helps verify service is running without spamming console
             if tick_count % 100 == 0:
                 logger.debug(f"Heartbeat | Time: {state.timestamp} | X: {state.x:.2f} | Y: {state.y:.2f} | Theta: {state.theta:.2f} | us_l : {state.us_l:.2f} | us_r: {state.us_r:.2f}| IR: {state.ir:.2f}")
             tick_count += 1
 
             # --- B. Handle Commands (Non-Blocking) ---
+            # zmq.NOBLOCK prevents main loop from stalling on command socket
+            # If no command available, zmq.Again exception is caught silently
             try:
                 msg = rep.recv_json(flags=zmq.NOBLOCK)
                 
@@ -97,7 +121,7 @@ def main():
             except zmq.Again:
                 pass
 
-            time.sleep(0.02) # 50hz
+            time.sleep(0.02) # Main loop runs at 50Hz (20ms per iteration)
 
     except KeyboardInterrupt:
         logger.info("Stopping Service...")
@@ -106,6 +130,7 @@ def main():
         logger.exception("Critical Runtime Error")
 
     finally:
+        # Cleanup: close all sockets and hardware driver to free resources
         logger.info("Closing Resources...")
         driver.close()
         pub.close()

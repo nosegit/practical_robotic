@@ -1,5 +1,9 @@
-import matplotlib.pyplot as plt
+'''
+Graph Visualizer Module
+Provides functionality to visualize the robot's mapped graph.
+'''
 
+import matplotlib.pyplot as plt
 
 class GraphVisualizer:
     """

@@ -1,15 +1,24 @@
-from lib.graph_mapper import *
-from lib.graph_solver import *
-from lib.graph_visualizer import *
+"""
+Autonomous Maze Exploration & Navigation Script
+DFS explores entire reachable maze, then BFS finds shortest path back to start.
 
-''' Autonomous Depth-First Search (DFS) Exploration Script 
-    1. Initialize GraphMapper and Start Node
-    2. reset robot pose and orientation
-    3. Start DFS Exploration from Start Node
-    4. Run BFS to find shortest path back to Start Node
-    5. Traverse back to Start Node after full exploration
-    6. Visualize the mapped graph
-'''
+Workflow:
+  1. Initialize mapper, create start node at (0,0), set heading North
+  2. Execute DFS to fully explore all reachable areas (doesn't stop at goal)
+  3. After full exploration, BFS finds shortest path from last node back to start
+  4. Traverse back along optimal path
+  5. Visualize complete mapped graph with DFS history and BFS solution
+
+Key: Goal detection (ArUco5 or RED object at y > 1.5m) is logged but DFS continues exploring.
+"""
+
+from lib.graph_mapper import GraphMapper
+from lib.graph_solver import GraphSolver
+from lib.graph_visualizer import GraphVisualizer
+from matplotlib import pyplot as plt
+import time
+
+
 
 if __name__ == "__main__":
 
@@ -29,11 +38,16 @@ if __name__ == "__main__":
 
         mapper.traveled_path.append(start_node)  # append start node to traveled path
 
-        # 3. Start DFS Exploration
+        # 3. DFS explores all reachable areas (continues even after goal detected)
         mapper.run_dfs(start_node)
         print("MAZE FULLY EXPLORED.")
 
-        # 4. Run BFS to find shortest path back to Start Node
+        # exit if goal not reached
+        if(not mapper.reach_goal):
+            print("WARNING: Goal not reached during exploration.")
+            exit(0)
+
+        # 4. BFS to find shortest path back to start
         print("\n--- CALCULATING SHORTEST PATH BACK TO START (BFS) ---")
         solver = GraphSolver(mapper.all_nodes)
         bfs_start = mapper.all_nodes[0]         # Start node (Node 1)
@@ -43,7 +57,7 @@ if __name__ == "__main__":
         bfs_path_ids = [n.id for n in bfs_path]
         print(f"BFS Path Back to Start: {bfs_path_ids}")
 
-        # 4. Traverse back to start
+        # 5. Traverse back
         print("TRAVERSE BACK")
         reverse_path = bfs_path[::-1] # Reverse the BFS path for backtracking
         mapper.traverse_back(reverse_path)

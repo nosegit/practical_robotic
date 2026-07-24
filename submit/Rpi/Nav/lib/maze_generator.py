@@ -106,4 +106,4 @@ def generate_large_maze(rows=10, cols=10, step=1.5):
     return maze
 
 # Generate the maze constant to be imported
-DEMO_MAZE = generate_large_maze(rows=6, cols=6)
+DEMO_MAZE = generate_large_maze(rows=10, cols=10)

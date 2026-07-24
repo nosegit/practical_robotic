@@ -1,3 +1,18 @@
+"""
+CameraServer: Real-time vision processing server for ArUco marker and color shape detection.
+Architecture:
+  - Captures video frames from Picamera2 on Raspberry Pi
+  - Detects ArUco markers with 6x6 dictionary for 3D pose estimation (position & heading)
+  - Detects colored shapes (triangles, rectangles, stars, circles) via HSV color thresholding
+  - Publishes detection data as JSON on port 5557 and live video stream as JPEG on port 5558
+  - Uses ZMQ PUB sockets for fast asynchronous broadcasting to multiple clients
+  
+Key Features:
+  - 3D pose estimation requires camera calibration (calibration_data.npz)
+  - Robust heading calculation immune to gimbal lock using Z-axis projection method
+  - Morphological operations for noise reduction in color detection
+  - Low-latency JPEG compression (quality 50) for real-time video streaming
+"""
 import picamera2
 import cv2
 import numpy as np
@@ -14,8 +29,7 @@ VIDEO_PORT = 5558     # Port for JPEG Stream
 TOPIC = "VISION"
 
 # Marker size in Meters
-MARKER_SIZE = 0.065
-SMOOTHING_ALPHA = 0.7 
+MARKER_SIZE = 0.065 # 6.5 cm
 
 # --- LOGGING SETUP ---
 logging.basicConfig(
@@ -48,6 +62,18 @@ ARUCO_DICT_TYPE = cv2.aruco.DICT_6X6_250
 
 class CameraServer:
     def __init__(self):
+        """
+        Initialize camera, ZMQ sockets, ArUco detector, and load calibration data.
+        
+        - Creates two ZMQ PUB sockets: one for JSON detection data (port 5557),
+          one for JPEG video frames (port 5558)
+        - Configures Picamera2 with manual exposure, gain, and white balance
+        - Loads camera intrinsics from calibration_data.npz if available
+        - Sets up ArUco detector with DICT_6X6_250 dictionary
+        
+        Raises:
+            RuntimeError: If camera initialization fails or ports cannot bind
+        """
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PUB)
         self.socket.bind(f"tcp://*:{PUB_PORT}")
@@ -76,7 +102,6 @@ class CameraServer:
         self.aruco_params = cv2.aruco.DetectorParameters()
         self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
         
-        self.pose_history = {} 
         self.mtx, self.dist = None, None
         
         if os.path.exists(CALIB_FILE):
@@ -88,6 +113,13 @@ class CameraServer:
             logger.warning("No calibration data found. ArUco pose estimation will be skipped.")
 
     def rotationMatrixToEulerAngles(self, R):
+        """
+        Convert 3x3 rotation matrix to Euler angles (roll, pitch, yaw in radians).
+        This method has gimbal lock singularity at pitch=±90°.
+            
+        Returns:
+            np.ndarray: [x, y, z] Euler angles where x=roll, y=pitch, z=yaw         
+        """
         sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
         singular = sy < 1e-6
         if not singular:
@@ -100,17 +132,19 @@ class CameraServer:
             z = 0
         return np.array([x, y, z])
     
-    def get_heading_robust(self,R):
+    def get_heading_robust(self, R):
         """
-        Calculates Yaw (Heading) by projecting the Target's Z-axis 
-        onto the Camera's horizontal plane (X-Z).
-        
-        This method is immune to Gimbal Lock that occurs at 90-degree pitch
-        in standard Euler decompositions.
+        Calculate marker heading (yaw) by projecting marker's Z-axis onto camera's horizontal plane.
+        This method is immune to gimbal lock that occurs at ±90° pitch in standard Euler decomposition.
+
+        Returns:
+            float: Heading angle in radians, range [-PI, PI], where 0 = camera forward direction
+            
+        Algorithm:
+            1. Extract marker's Z-axis as seen from camera (R[:, 2])
+            2. Project onto X-Z horizontal plane: (z_axis_x, z_axis_z)
+            3. Calculate angle using atan2 with offset correction
         """
-        # In a Rotation Matrix, the columns represent the Target's axes 
-        # expressed in Camera coordinates.
-        # Column 0 = Target X, Column 1 = Target Y, Column 2 = Target Z
         
         # We assume the 'Forward' direction of the tag is its Z-axis (Column 2).
         z_axis_x = R[0, 2]
@@ -127,6 +161,9 @@ class CameraServer:
         return heading
 
     def create_color_mask(self, hsv, color_name, limits):
+        """
+        Create binary mask for a specific color in HSV space with morphological filtering.
+        """
         mask = cv2.inRange(hsv, limits['lower1'], limits['upper1'])
         if 'lower2' in limits:
             mask2 = cv2.inRange(hsv, limits['lower2'], limits['upper2'])
@@ -136,6 +173,22 @@ class CameraServer:
         return mask
 
     def detect_color_shapes(self, hsv_image):
+        """
+        Detect colored shapes (triangles, rectangles, stars, circles) in HSV image.
+        
+        Args:
+            hsv_image (np.ndarray): Image in HSV color space
+                
+        Algorithm:
+            1. For each color in COLOR_RANGES, create binary mask
+            2. Find contours and filter by minimum area (1100 pixels)
+            3. Approximate contour polygon and classify by vertex count:
+               - 3 vertices = Triangle
+               - 4 vertices = Rectangle
+               - 8 vertices = Circle
+               - 10 vertices = Star
+            4. Calculate centroid and bounding box for each shape
+        """
         detected = []
         for color_name, limits in COLOR_RANGES.items():
             mask = self.create_color_mask(hsv_image, color_name, limits)
@@ -178,6 +231,36 @@ class CameraServer:
         return detected
 
     def detect_aruco(self, image, gray_image):
+        """
+        Detect ArUco markers and estimate 3D pose (position + heading) if calibration available.
+        
+        Args:
+            image (np.ndarray): RGB/BGR image frame
+            gray_image (np.ndarray): Grayscale version of image
+            
+        Returns:
+            list: List of detected markers, each as dict:
+                {
+                    "type": "aruco",
+                    "id": marker_id (int),
+                    "center": [pixel_x, pixel_y],
+                    "corners": [[x,y], ...] (4 corner points),
+                    "rvec": [rx, ry, rz] (rotation vector),
+                    "tvec": [tx, ty, tz] (translation vector in meters),
+                    "yaw": heading in degrees (0-360),
+                    "distance": distance from camera in meters,
+                    "draw_rvec": rvec (numpy, for visualization),
+                    "draw_tvec": tvec (numpy, for visualization)
+                }
+                If no calibration: returns 2D detection only (id, center, corners)
+                
+        Algorithm:
+            1. Use cv2.aruco.ArucoDetector to find all markers
+            2. If calibration exists, estimate 3D pose using cv2.solvePnP with IPPE_SQUARE method
+            3. Convert rotation vector to rotation matrix
+            4. Calculate yaw using robust heading method (immune to gimbal lock)
+            5. Separate numpy arrays (with 'draw_' prefix) for visualization from JSON output
+        """
         detected = []
         corners, ids, rejected = self.detector.detectMarkers(gray_image)
         
@@ -204,27 +287,13 @@ class CameraServer:
                     success = False
                     rvec, tvec = None, None
 
-                    # disable history as multiple tags with same number in 1 frame mess up pose_history.
-                    if marker_id in self.pose_history and None: 
-                        old_rvec, old_tvec = self.pose_history[marker_id]
-                        success, rvec, tvec = cv2.solvePnP(
-                            obj_points, corner, self.mtx, self.dist,
-                            rvec=old_rvec, tvec=old_tvec,
-                            useExtrinsicGuess=True,
-                            flags=cv2.SOLVEPNP_ITERATIVE
-                        )
-                        if success:
-                            rvec = SMOOTHING_ALPHA * rvec + (1 - SMOOTHING_ALPHA) * old_rvec
-                            tvec = SMOOTHING_ALPHA * tvec + (1 - SMOOTHING_ALPHA) * old_tvec
-                    else:
-                        success, rvec, tvec = cv2.solvePnP(
-                            obj_points, corner, self.mtx, self.dist,
-                            flags=cv2.SOLVEPNP_IPPE_SQUARE
-                        )
+                    success, rvec, tvec = cv2.solvePnP(
+                        obj_points, corner, self.mtx, self.dist,
+                        flags=cv2.SOLVEPNP_IPPE_SQUARE
+                    )
                     
                     if success:
                         pose_found = True
-                        self.pose_history[marker_id] = (rvec, tvec)
                         
                         rmat, _ = cv2.Rodrigues(rvec)
                         angles = self.rotationMatrixToEulerAngles(rmat)
@@ -256,6 +325,22 @@ class CameraServer:
         return detected
 
     def run(self):
+        """
+        Main vision loop: capture frames, process, and broadcast detections & video stream.
+        
+        Loop sequence (every ~100ms at 10 FPS):
+            1. Capture RGB frame and convert to HSV/grayscale
+            2. Detect colored shapes and ArUco markers in parallel
+            3. Draw overlays on frame (bounding boxes, axes, labels)
+            4. Publish JSON detection data (shapes + markers metadata)
+            5. Publish JPEG-compressed video stream for live monitoring
+            6. Log findings (INFO on detection, DEBUG heartbeat every 1 second)
+            
+        Graceful shutdown:
+            - Catches KeyboardInterrupt (Ctrl+C) to close camera and sockets
+            - Continues on frame processing errors to prevent crash (critical for robotic systems)
+        """
+
         logger.info("Starting Vision Loop...")
         frame_counter = 0
         last_log_time = time.time()

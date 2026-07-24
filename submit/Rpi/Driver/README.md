@@ -10,6 +10,7 @@ This set of scripts implements a **Hybrid ZeroMQ Architecture** to control a rob
 | lib/robot_driver.py | Driver | Handles the low-level serial communication, checksum validation, and binary packet parsing. |
 | lib/robot_client.py | SDK | A library for user scripts. Abstracts ZMQ sockets into simple methods like set_velocity() and get_state(). |
 | test/simple_client.py | User Script | A sample application that connects to the service and runs a predefined movement pattern. |
+| test/teleop_client.py | User Script | A terminal form keyboard control like turtle bot. |
 
 ## 🚀 How to Run
 

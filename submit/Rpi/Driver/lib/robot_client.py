@@ -1,3 +1,9 @@
+"""
+RobotClient: ZMQ-based client for controlling a mobile robot via command and telemetry sockets.
+Provides high-level control methods for movement, rotation, and sensor-based navigation.
+Uses REQ socket for sending commands (velocity) and SUB socket for receiving telemetry (position, orientation, IR).
+"""
+
 import zmq
 import json
 import time
@@ -5,6 +11,14 @@ import math
 
 class RobotClient:
     def __init__(self, host="127.0.0.1", pub_port=5555, req_port=5556):
+        """
+        Initialize ZMQ sockets for REQ (commands) and SUB (telemetry) communication.
+        
+        Args:
+            host: IP address of the robot server (default: localhost)
+            pub_port: Port for telemetry subscription (default: 5555)
+            req_port: Port for command requests (default: 5556)
+        """
         self.context = zmq.Context()
 
         # 1. Command Socket (REQ)
@@ -19,6 +33,16 @@ class RobotClient:
         self.sub_socket.setsockopt(zmq.LINGER, 0)
 
     def set_velocity(self, v, w):
+        """
+        Send linear velocity (v) and angular velocity (w) command to robot.
+        
+        Args:
+            v: Linear velocity in m/s (positive=forward, negative=backward)
+            w: Angular velocity in rad/s (positive=left, negative=right)
+            
+        Returns:
+            Server acknowledgment string or "ERROR" on ZMQ failure
+        """
         cmd = {"v": float(v), "w": float(w)}
         try:
             self.req_socket.send_json(cmd)
@@ -27,9 +51,17 @@ class RobotClient:
             return "ERROR"
 
     def stop(self):
+        """Command robot to stop by setting both velocities to zero."""
         return self.set_velocity(0.0, 0.0)
 
     def get_state(self):
+        """
+        Retrieve latest robot state from telemetry stream (non-blocking).
+        Drains all buffered messages and returns the most recent one.
+        
+        Returns:
+            Dictionary with keys: x, y, theta (pose) and ir (sensor value), or None if no data
+        """
         latest_msg = None
         try:
             while True:
@@ -42,6 +74,10 @@ class RobotClient:
         return None
 
     def close(self):
+        """
+        Clean shutdown: safely stop the robot and close all ZMQ sockets and context.
+        Should be called before program exit to free resources.
+        """
         try:
             self.stop()
         except: 
@@ -53,6 +89,13 @@ class RobotClient:
     # --- HELPER FUNCTIONS ---
 
     def _wait_for_valid_state(self):
+        """
+        Block until a valid state is received from telemetry socket.
+        Polls with 10ms intervals until data arrives.
+        
+        Returns:
+            Dictionary containing current robot state (x, y, theta, ir)
+        """
         state = None
         while state is None:
             state = self.get_state()
@@ -62,8 +105,12 @@ class RobotClient:
 
     def move_distance(self, distance_meters, max_speed=0.2):
         """
-        Moves specific distance using P-Control for precision.
-        Slows down as it gets closer to target.
+        Move robot forward/backward by specified distance using proportional controller.
+        Slows down smoothly as target is approached for better accuracy.
+        
+        Args:
+            distance_meters: Target distance (positive=forward, negative=backward)
+            max_speed: Maximum velocity cap during movement
         """
         print(f"Moving {distance_meters:.2f}m...")
         start_state = self._wait_for_valid_state()
@@ -102,6 +149,14 @@ class RobotClient:
         print(f"Move Complete. Error: {error:.4f}m")
 
     def rotate(self, angle_degrees, speed=0.5):
+        """
+        Rotate robot by relative angle from current heading.
+        Tracks accumulated rotation accounting for angle wrapping (-π to π).
+        
+        Args:
+            angle_degrees: Rotation angle (positive=counterclockwise, negative=clockwise)
+            speed: Angular velocity magnitude
+        """
         print(f"Rotating {angle_degrees:.1f} degrees...")
         target_rad = math.radians(angle_degrees)
         start_state = self._wait_for_valid_state()
@@ -130,8 +185,12 @@ class RobotClient:
 
     def rotate_to_angle(self, target_angle_degrees, speed=0.5):
         """
-        Rotates the robot to face a specific absolute angle (e.g., 90 for North).
-        Calculates the shortest path (Left or Right).
+        Rotate robot to face absolute cardinal angle (0-360 degrees).
+        Automatically calculates shortest path and adapts speed after first attempt.
+        
+        Args:
+            target_angle_degrees: Desired absolute heading (0=East, 90=North, etc.)
+            speed: Initial angular velocity magnitude
         """
         while True:
             # 1. Get current heading
@@ -165,9 +224,12 @@ class RobotClient:
 
     def wall_sweep(self, sweep_arc=60, speed=0.3):
         """
-        1. Rotates by 'turn_angle'.
-        2. Continuous sweep of 'sweep_arc' degrees to find min IR.
-        3. Rotates back until IR matches the found minimum.
+        Perform arc sweep to locate minimum IR distance, then rotate back to that position.
+        Two-phase operation: continuous scan left-to-right, then seek minimum by scanning right-to-left.
+        
+        Args:
+            sweep_arc: Arc width to scan in degrees
+            speed: Rotation speed during sweep (rad/s equivalent)
         """
         print(f"Starting Continuous Wall Sweep...")
         
@@ -254,6 +316,13 @@ class RobotClient:
         print("Wall Sweep Complete.")
 
     def set_theta(self, angle_degrees):
+        """
+        Internal method: Set robot heading using ad-hoc velocity command.
+        Normalizes angle to [-π, π] before sending to server.
+        
+        Args:
+            angle_degrees: Target heading in degrees
+        """
         angle_rad = math.radians(angle_degrees)
 
         # normalize
@@ -264,12 +333,22 @@ class RobotClient:
         self.set_velocity(-31, angle_rad)
 
     def get_snap_angle(self):
+        """
+        Get current robot angle snapped to nearest 90-degree cardinal direction.
+        Useful for aligning with grid-based navigation or cardinal directions.
+        
+        Returns:
+            Angle in degrees: 0, 90, 180, or 270
+        """
         angle_degrees = math.degrees(self._wait_for_valid_state()['theta'])
         return round(angle_degrees/90) * 90
     
     def reset_pose(self):
-
+        """
+        Reset robot pose to origin using ad-hoc velocity commands.
+        Sends 5 reset commands with negative linear velocity to calibrate internal odometry.
+        """
         for i in range(5):
             # ad-hoc reset pose with V = -30
             self.set_velocity(-30,0)
-            
+

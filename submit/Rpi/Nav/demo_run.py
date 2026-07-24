@@ -1,3 +1,11 @@
+'''
+
+Demo script to showcase DFS mapping and BFS solving on a predefined maze.
+Uses mocked robot and camera clients to simulate movement and sensing.
+Instead of run.py, this demo use simpleDemoMapper inherited from GraphMapper.
+GraphMapper is main functionality for DFS exploration (maze exploration).
+'''
+
 import sys
 import time
 import math
@@ -148,7 +156,7 @@ class SimpleDemoMapper(GraphMapper):
         # --- UPDATE LIVE VISUALS ---
         self.update_visuals()
         
-        time.sleep(0.1)
+        time.sleep(0.01)
 
     def rotate_to_angle(self, angle): pass
  
