@@ -9,6 +9,8 @@ unsigned long timestamp_ms = 0;
 
 void setup() {
   // put your setup code here, to run once:
+  while(!Serial);
+  Serial.begin(9600);
 }
 
 void loop() {
