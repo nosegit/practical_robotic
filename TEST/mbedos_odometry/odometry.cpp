@@ -25,53 +25,80 @@ float ODOMETRY::meterToTick(float input){
   return (input/_wheel_circumference)*_ticks_per_revolution;
 }
 
-void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right){
+// UPDATE: Added gyro_z (in Radians/sec) and dt (in Seconds)
+void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float gyro_z_rads, float dt){
 
-
-  // calculate delta
+  // --- 1. ENCODER CALCULATIONS ---
   long distance_tick_l = total_ticks_left - _last_ticks_left;
   long distance_tick_r = total_ticks_right - _last_ticks_right;
 
-  // save previous encoder value
+  // Save previous encoder value
   _last_ticks_left = total_ticks_left;
   _last_ticks_right = total_ticks_right;
 
-  // convert to distance in meters
+  // Convert to distance in meters
   float distance_meter_l = distance_tick_l * _meters_per_tick;
   float distance_meter_r = distance_tick_r * _meters_per_tick;
 
-  // calculate center motion
-  float delta_distance_center = (distance_meter_r + distance_meter_l)/2.0;
-  float delta_theta = (distance_meter_r - distance_meter_l)/ _wheel_separation;
+  // Calculate Center Distance (Linear Motion)
+  float delta_distance_center = (distance_meter_r + distance_meter_l) / 2.0;
 
-  // Serial.print(distance_tick_l);
-  // Serial.print(",");
-  // Serial.print(distance_tick_r);
-  // Serial.print(",");
-  // Serial.print(distance_meter_l);
-  // Serial.print(",");
-  // Serial.print(distance_meter_r);
-  // Serial.print(",");
-  // Serial.print(delta_distance_center);
-  // Serial.print(",");
-  // Serial.println(delta_theta);
+  // Calculate Encoder Delta Theta (The "Noisy" but "Drift-Free" Rotation)
+  float delta_theta_enc = (distance_meter_r - distance_meter_l) / _wheel_separation;
 
 
-  // update global pose (x, y , thta) 
-  // using Midpoint Intergration for better accuracy on curves
-  _pose.x += delta_distance_center * cos(_pose.theta + (delta_theta/2.0));
-  _pose.y += delta_distance_center * sin(_pose.theta + (delta_theta/2.0));
-  _pose.theta += delta_theta;
+  // --- 2. GYRO CALCULATIONS (Trapezoidal Integration) ---
+  // Average the previous gyro rate and current gyro rate to handle acceleration
+  float avg_gyro_rate = (_last_gyro_z + gyro_z_rads) / 2.0;
+  
+  // Calculate Gyro Delta Theta (The "Smooth" but "Drifting" Rotation)
+  float delta_theta_gyro = avg_gyro_rate * dt;
 
-  // normalize Theta to -PI to PI
+  // Save current gyro for next loop's "previous"
+  _last_gyro_z = gyro_z_rads;
+
+
+  // --- 3. SENSOR FUSION (Complementary Filter) ---
+  // We fuse the CHANGES in angle (Deltas), not the absolute angle.
+  // Alpha is usually 0.95 to 0.98 (Trust Gyro for fast turns, Encoder for slow drift)
+  const float ALPHA = 0.98; 
+
+  float delta_theta_fused = (ALPHA * delta_theta_gyro) + ((1.0 - ALPHA) * delta_theta_enc);
+
+
+  // --- 4. UPDATE GLOBAL POSE ---
+  // Use the FUSED theta for the heading update
+  // Use Midpoint Integration for X/Y (using half the fused change)
+  _pose.x += delta_distance_center * cos(_pose.theta + (delta_theta_fused / 2.0));
+  _pose.y += delta_distance_center * sin(_pose.theta + (delta_theta_fused / 2.0));
+  
+  // Update Heading
+  _pose.theta += delta_theta_fused;
+
+  // --- 5. NORMALIZE THETA ---
   if( _pose.theta > M_PI ) { _pose.theta -= 2*M_PI; }
   if( _pose.theta < -M_PI ) { _pose.theta += 2*M_PI; }
-
 }
 
-void ODOMETRY::Begin(MOTOR* motor_ptr){
+void ODOMETRY::Begin(rtos::Mutex* i2c_lock_ptr, MOTOR* motor_ptr){
 
   _MOTOR = motor_ptr;
+  _I2CLOCK = i2c_lock_ptr;
+
+  // 1. CALIBRATION ROUTINE
+  _I2CLOCK->lock();
+  if (!IMU.begin()) { /* Handle Error */ }
+  
+  // Take 100 samples to find the "Zero" offset
+  float sum = 0;
+  for(int i=0; i<100; i++) {
+      float x, y, z;
+      IMU.readGyroscope(x, y, z);
+      sum += z;
+      delay(5);
+  }
+  _gyro_bias = sum / 100.0;
+  _I2CLOCK->unlock();
 
   _THREAD.start(mbed::callback(this, &ODOMETRY::loop));
 
@@ -81,10 +108,34 @@ void ODOMETRY::loop(){
 
   for(;;){
 
-    // calculate POSE
-    updatePose(_MOTOR->Get_encoder_cnt(0), _MOTOR->Get_encoder_cnt(1));
+    // --- PHASE 1: HARDWARE (Needs Lock) ---
+    // A. Read Motors (Fast, Atomic)
+    long ticks_L, ticks_R;
+    ticks_L = _MOTOR->Get_encoder_cnt(0);
+    ticks_R = _MOTOR->Get_encoder_cnt(1);
 
-    // sleep for 10 ms
+    // B. Read Gyro (Slow, I2C)
+    float gx, gy, gz;
+    
+    _I2CLOCK->lock();      // <--- LOCK START
+    IMU.readGyroscope(gx, gy, gz);
+    _I2CLOCK->unlock();    // <--- LOCK END (Release immediately!)
+
+    // --- PHASE 2: PRE-PROCESSING (No Lock needed) ---
+    // Convert units here, keep the math function clean
+    float gz_rads = (gz - _gyro_bias) * (PI / 180.0);
+    
+    // Calculate precise DT
+    unsigned long current_micros = micros();
+    float dt = (current_micros - _prev_micros) / 1000000.0;
+    _prev_micros = current_micros;
+
+    // --- PHASE 3: ALGORITHM (The Math) ---
+    // This function knows NOTHING about I2C or Libraries.
+    // It only knows numbers.
+    updatePose(ticks_L, ticks_R, gz_rads, dt);
+
+    // --- PHASE 4: TIMING ---
     rtos::ThisThread::sleep_for(TARGET_LOOP_PERIOD);
 
   }

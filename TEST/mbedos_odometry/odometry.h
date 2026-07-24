@@ -2,6 +2,7 @@
 #define _ODOMETRY_H
 
 #include <mbed.h>
+#include <Arduino_LSM9DS1.h>
 #include "motor.h"
 using namespace std::chrono;
 
@@ -35,7 +36,7 @@ public:
   float meterToTick(float input);  // convert m/s to ticks/s
   void printPose();
 
-  void Begin(MOTOR* motor_ptr);
+  void Begin(rtos::Mutex* i2c_lock_ptr, MOTOR* motor_ptr);
 
 
 
@@ -58,14 +59,20 @@ private:
 
   // --- Thread ---
   const milliseconds TARGET_LOOP_PERIOD = 10ms;
-  rtos::Thread  _THREAD;
+  rtos::Thread _THREAD;
   MOTOR* _MOTOR;
   void loop();
+
+  // --- IMU ---
+  rtos::Mutex* _I2CLOCK;
+  float _gyro_bias;
 
   // --- 2. Forward Kinematics (Odometry) ---
   // Takes the *total* accumulated encoder ticks...
   // ...and updates the robot's internal X, Y, and Theta pose.
-  void updatePose(long total_ticks_left, long total_ticks_right);
+  void updatePose(long total_ticks_left, long total_ticks_right, float gyro_z_rads, float dt);
+  unsigned long _prev_micros;
+  float _last_gyro_z;
 
 
 };
