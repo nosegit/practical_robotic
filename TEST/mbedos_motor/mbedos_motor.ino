@@ -16,61 +16,89 @@ void setup() {
   Serial.begin(9600);
 
   Motor.Begin();
-  Motor.Set_frquency(0,100);  // 100 Hz
+  // Motor.Set_frquency(0,100);  // 100 Hz
 
-  motor_test_basic();
+  // for(int i = 0 ; i < 4 ; i++){
+  //   motor_test_basic();
+  //   delay(500);
+  // }
 
   // motor_test_10_cm();
-  // motor_test_90_degree();
+  for(int i = 0 ; i < 4; i++){
+    motor_test_90_degree();
+    delay(500);
+  }
   // motor_test_single_revolution();
-
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
+  // Motor.Set_pwm(1, 50);
+  // Motor.Print_info();
+
+  // motor_frequency_test();
+
 }
+
+unsigned long motor_frequency_timestamp_us;
+void motor_frequency_test(){
+
+  if(micros() - motor_frequency_timestamp_us > 1e5){ // 10hz
+    Motor.Set_pwm(1, 20);
+    Motor.Set_pwm(0, 20);
+    Motor.Print_info();
+    motor_frequency_timestamp_us = micros();
+  }
+}
+
 
 void motor_test_basic(){
     Motor.Set_dir(0, 0);
     Motor.Set_dir(1, 0);
 
     for(int i = 0; i < 100; i++){
-      Serial.println(i);
+      Serial.print(i);
+      Serial.print(",");
       Motor.Set_pwm(0, i);
       Motor.Set_pwm(1, i);
 
-      Motor.Print_info();
-      delay(50);
+      // Motor.Print_info();
+      Motor.Print_info_CSV();
+      delay(100);
 
     }
-    // delay(1000);
+    Motor.Set_pwm(0, 0);
+    Motor.Set_pwm(1, 0);
+    delay(500);
 
     Motor.Set_dir(0, 1);
     Motor.Set_dir(1, 1);
 
     for(int i = 0; i < 100; i++){
-      Serial.println(i);
+      Serial.print(-i);
+      Serial.print(",");
       Motor.Set_pwm(0, i);
       Motor.Set_pwm(1, i);
 
-      Motor.Print_info();
-      delay(50);
+      // Motor.Print_info();
+      Motor.Print_info_CSV();
+      delay(100);
     }
     // delay(1000);
 
     Motor.Set_pwm(0, 0);
     Motor.Set_pwm(1, 0);
 
-    Motor.Print_info();
+    // Motor.Print_info();
 }
 
 #define GEAR_RATIOA 298
-#define WHEEL_REV_ENCA 3*GEAR_RATIOA
+#define WHEEL_REV_ENCA 2*3*GEAR_RATIOA
 #define WHEEL_DIAMETER 4.7
 #define WHEEL_CIRCUMFERENCE WHEEL_DIAMETER*3.14
-#define WHEEL_ENC_CM_RATIO 60.548389609  // WHEEL_REV_ENCA/WHEEL_CIRCUMFERENCE -> 3*298/(4.7*3.1415) 
+#define WHEEL_ENC_CM_RATIO 2*60.548389609  // WHEEL_REV_ENCA/WHEEL_CIRCUMFERENCE -> 3*298/(4.7*3.1415) 
 
 void motor_test_10_cm(){
 
@@ -84,19 +112,6 @@ void motor_test_10_cm(){
   Motor.Set_pwm(1, 50);
 
   long long target = WHEEL_ENC_CM_RATIO*10;
-  // Serial.println(target);
-
-  // while ( Motor.Get_encoder_cnt(0)-enc_start_a <= target or Motor.Get_encoder_cnt(1)-enc_start_b <= target){
-  //   Motor.Print_info();
-    
-  //   if(Motor.Get_encoder_cnt(0)-enc_start_a > target){
-  //     Motor.Set_pwm(0,0);
-  //   }
-
-  //   if(Motor.Get_encoder_cnt(1)-enc_start_b > target){
-  //     Motor.Set_pwm(1,0);
-  //   }
-  // }
 
   move_to_target(target, target);
   Motor.Set_pwm(0, 0);
@@ -112,10 +127,10 @@ void motor_test_90_degree(){
   Motor.Set_dir(0, 0);
   Motor.Set_dir(1, 0);
 
-  Motor.Set_pwm(0, 60);
-  Motor.Set_pwm(1, 50);
+  Motor.Set_pwm(0, 35);
+  Motor.Set_pwm(1, 35);
 
-  long long target = WHEEL_ENC_CM_RATIO* 3.1415*22/4;
+  long long target = WHEEL_ENC_CM_RATIO* 3.1415*19.75/4;
 
   move_to_target(enc_start_a-target, enc_start_b+target);
   Motor.Set_pwm(0, 0);
@@ -131,7 +146,7 @@ void move_to_target(long long targeta, long long targetb){
   Motor.Set_dir(0, targeta > enc_start_a ? 0 : 1);
   Motor.Set_dir(1, targetb > enc_start_b ? 0 : 1);
 
-  Motor.Set_pwm(0, 60);
+  Motor.Set_pwm(0, 50);
   Motor.Set_pwm(1, 50);
 
   while ( target_compare(Motor.Get_encoder_cnt(0), targeta)==0 && target_compare(Motor.Get_encoder_cnt(1), targetb)==0){

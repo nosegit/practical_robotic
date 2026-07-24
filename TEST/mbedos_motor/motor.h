@@ -1,3 +1,4 @@
+#include <ratio>
 #ifndef _MOTOR_H
 #define _MOTOR_H
 
@@ -17,6 +18,7 @@ class MOTOR{
   uint32_t            _PWMA_FREQ = 100e3;
   uint32_t            _PWMA_PERIOD_US;
   mbed::Timer         _ENCODERA_TIMER;
+  unsigned long       _ENCODERA_TIMESTAMP_US;
   float               _ENCODERA_SPEED;
   long long           _ENCODERA_CNT = 0;
   long long           _ENCODERA_CNT_PREV = 0;
@@ -29,7 +31,8 @@ class MOTOR{
   uint32_t            _PWMB_FREQ = 100e3;
   uint32_t            _PWMB_PERIOD_US;
   mbed::Timer         _ENCODERB_TIMER;
-  float               _ENCODERB_SPEED;
+  unsigned long       _ENCODERB_TIMESTAMP_US;
+  long long           _ENCODERB_SPEED;
   long long           _ENCODERB_CNT = 0;
   long long           _ENCODERB_CNT_PREV = 0;
 
@@ -50,6 +53,7 @@ class MOTOR{
   long long Get_encoder_cnt(int motor){ return motor ? _ENCODERB_CNT : _ENCODERA_CNT ;}
   void Reset_encoder();
   void Print_info();
+  void Print_info_CSV();
 
 };
 
