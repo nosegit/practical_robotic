@@ -11,12 +11,14 @@ class CameraClient:
         self.socket = self.context.socket(zmq.SUB)
         self.socket.connect(f"tcp://{host}:{port}")
         self.socket.subscribe("VISION")
+
+        self.socket.setsockopt(zmq.LINGER, 0)
         
-        # Try to use CONFLATE (Server side filtering), but don't rely on it entirely.
-        try:
-            self.socket.setsockopt(zmq.CONFLATE, 1)
-        except AttributeError:
-            self.socket.setsockopt(zmq.LINGER, 0)
+        # # Try to use CONFLATE (Server side filtering), but don't rely on it entirely.
+        # try:
+        #     self.socket.setsockopt(zmq.CONFLATE, 1)
+        # except AttributeError:
+        #     self.socket.setsockopt(zmq.LINGER, 0)
 
     def get_latest_data(self, timeout=None):
         """
@@ -57,7 +59,7 @@ class CameraClient:
         Finds a specific ArUco marker and returns its 3D pose data.
         Returns None if the marker is not currently visible.
         """
-        data = self.get_latest_data(timeout=100)
+        data = self.get_latest_data(timeout=300)
         if not data or 'aruco' not in data:
             return None
             
@@ -65,6 +67,15 @@ class CameraClient:
             if marker['id'] == marker_id:
                 return marker
         return None
+    
+    def get_all_marker(self):
+        arr = []
+        for i in range(1,6):
+            data = self.get_marker_pose(marker_id=i)
+            if (data):
+                arr.append(data)
+    
+        return arr if arr != [] else None
 
     def get_closest_shape(self, color=None, label=None):
         """
@@ -88,6 +99,21 @@ class CameraClient:
                 best_match = shape
                 
         return best_match
+    
+    def is_color(self, color=None):
+        """
+        Returns if there is object(shape) matching  the color.
+        """
+        data = self.get_latest_data(timeout=100)
+        if not data or 'shapes' not in data:
+            return None
+        
+        for shape in data['shapes']:
+            # Filter logic
+            if color and shape['color'] == color: 
+                return True
+
+        return False
 
 # --- TEST USAGE ---
 if __name__ == "__main__":
@@ -95,14 +121,23 @@ if __name__ == "__main__":
     print("Camera Client Started. Waiting for data...")
     
     while True:
-        # 1. Check for ArUco ID 1
-        marker = client.get_marker_pose(marker_id=1)
-        if marker:
-            print(f"[ARUCO] ID: 1 | Dist: {marker['distance']:.2f}m | Yaw: {marker['yaw']:.1f}°")
+        # # 1. Check for ArUco ID 1
+        # marker = client.get_marker_pose(marker_id=1)
+        # if marker:
+        #     print(f"[ARUCO] ID: 1 | Dist: {marker['distance']:.2f}m | Yaw: {marker['yaw']:.1f}°")
         
-        # 2. Check for Red Triangle
-        shape = client.get_closest_shape(color="RED", label="Triangle")
-        if shape:
-            print(f"[SHAPE] Found Red Triangle at {shape['center']}")
+        # # 2. Check for Red Triangle
+        # shape = client.get_closest_shape(color="RED", label="Triangle")
+        # if shape:
+        #     print(f"[SHAPE] Found Red Triangle at {shape['center']}")
+
+        dist_nearest_tag = 999
+        markers = client.get_all_marker()
+        if markers:
+            for i in markers:
+                print(i['yaw'])
+                dist_nearest_tag = min(dist_nearest_tag,i['distance'])
+
+        print(dist_nearest_tag)
 
         time.sleep(0.1)

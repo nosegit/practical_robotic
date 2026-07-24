@@ -1,0 +1,71 @@
+ #!/bin/bash
+
+
+# --- Configuration ---
+
+REMOTE_USER="pi"
+
+REMOTE_IP=$PI_IP
+
+REMOTE_PASS="raspberry"
+
+SESSION="work_grid"
+
+
+# The Command:
+
+# 1. We use 'expect' to handle the login.
+
+# 2. If expect finishes, we run 'bash' locally as a fallback so the pane stays open.
+
+LOGIN_CMD="expect -c '
+
+  set timeout 15
+
+  spawn ssh -XC -o StrictHostKeyChecking=no -t $REMOTE_USER@$REMOTE_IP \"./start_env.sh\"
+
+  expect \"*assword:*\"
+
+  send \"$REMOTE_PASS\r\"
+
+  interact
+
+'; exec /bin/bash"
+
+
+# 1. Kill the session if it already exists (optional, for a clean start)
+
+tmux kill-session -t $SESSION 2>/dev/null
+
+
+# 2. Create the first pane
+
+tmux new-session -d -s $SESSION "$LOGIN_CMD"
+
+
+# 3. Split into 2x2 grid
+
+# Split vertically (Top/Bottom)
+
+tmux split-window -v "$LOGIN_CMD"
+
+
+# Select Top Pane (0) and split horizontally
+
+tmux select-pane -t 0
+
+tmux split-window -h "$LOGIN_CMD"
+
+
+# Select Bottom Pane (2) and split horizontally
+
+tmux select-pane -t 2
+
+tmux split-window -h "$LOGIN_CMD"
+
+
+# 4. Final adjustments
+
+tmux select-pane -t 0           # Focus on the top-left pane
+
+tmux attach-session -t $SESSION 

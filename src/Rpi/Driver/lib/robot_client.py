@@ -70,7 +70,7 @@ class RobotClient:
         start_x, start_y = start_state['x'], start_state['y']
         
         # P-Controller Gains
-        Kp = 0.75   # Speed = Error * Kp
+        Kp = 0.6   # Speed = Error * Kp, Kp = 0.75
         MIN_SPEED = 0.01 # Minimum power to move motors
         TOLERANCE = 0.005 # 1cm accuracy
 
@@ -155,7 +155,7 @@ class RobotClient:
             print(f"Adjusting heading: Turning {delta_deg:.1f} degrees to reach {target_angle_degrees}.")
             
             # 3. Execute Turn using the existing relative rotate function
-            self.rotate(delta_deg, speed)
+            self.rotate(delta_deg, speed )
             self.stop()
             time.sleep(0.1)
             

@@ -33,13 +33,14 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 # Camera Settings
 MY_SHUTTER = 23846      
 MY_GAIN = 2.0           
-MY_AWB = (1.453, 1.803) 
+MY_AWB = (1.4530320167541504, 1.8029404878616333) 
 
 COLOR_RANGES = {
-    'RED':    {'lower1': (0, 100, 100), 'upper1': (10, 255, 255), 'lower2': (170, 100, 100), 'upper2': (179, 255, 255)},
-    'GREEN':  {'lower1': (40, 60, 60),   'upper1': (90, 255, 255)},
-    'BLUE':   {'lower1': (100, 150, 0),  'upper1': (140, 255, 255)},
-    'YELLOW': {'lower1': (20, 100, 100), 'upper1': (30, 255, 255)}
+    'RED'       : { 'lower1': (0, 100, 100),    'upper1': (10, 255, 255),   'lower2': (170, 100, 100),  'upper2': (179, 255, 255)},
+    'GREEN'     : { 'lower1': (40, 80, 0),   'upper1': (90, 255, 255) },
+    'BLUE'      : { 'lower1': (100,190,20),      'upper1': (120,255,255) },
+    # 'PURPLE'    : { 'lower1': (120, 100, 100),  'upper1': (165, 255, 255) }
+    'PURPLE'    : { 'lower1': (125, 80, 25),  'upper1': (140, 120, 255) }
 }
 
 CALIB_FILE = "calibration_data.npz"
@@ -98,6 +99,32 @@ class CameraServer:
             y = math.atan2(-R[2, 0], sy)
             z = 0
         return np.array([x, y, z])
+    
+    def get_heading_robust(self,R):
+        """
+        Calculates Yaw (Heading) by projecting the Target's Z-axis 
+        onto the Camera's horizontal plane (X-Z).
+        
+        This method is immune to Gimbal Lock that occurs at 90-degree pitch
+        in standard Euler decompositions.
+        """
+        # In a Rotation Matrix, the columns represent the Target's axes 
+        # expressed in Camera coordinates.
+        # Column 0 = Target X, Column 1 = Target Y, Column 2 = Target Z
+        
+        # We assume the 'Forward' direction of the tag is its Z-axis (Column 2).
+        z_axis_x = R[0, 2]
+        z_axis_z = R[2, 2]
+        
+        # Calculate angle of that vector in the X-Z plane
+        heading = math.atan2(z_axis_x, z_axis_z)
+
+        if(heading > 0) :
+            heading = heading - math.pi
+        else :
+            heading = heading + math.pi
+        
+        return heading
 
     def create_color_mask(self, hsv, color_name, limits):
         mask = cv2.inRange(hsv, limits['lower1'], limits['upper1'])
@@ -177,7 +204,8 @@ class CameraServer:
                     success = False
                     rvec, tvec = None, None
 
-                    if marker_id in self.pose_history:
+                    # disable history as multiple tags with same number in 1 frame mess up pose_history.
+                    if marker_id in self.pose_history and None: 
                         old_rvec, old_tvec = self.pose_history[marker_id]
                         success, rvec, tvec = cv2.solvePnP(
                             obj_points, corner, self.mtx, self.dist,
@@ -200,6 +228,7 @@ class CameraServer:
                         
                         rmat, _ = cv2.Rodrigues(rvec)
                         angles = self.rotationMatrixToEulerAngles(rmat)
+                        yaw = self.get_heading_robust(rmat)
                         
                         detected.append({
                             "type": "aruco",
@@ -208,7 +237,8 @@ class CameraServer:
                             "corners": corner.tolist(),
                             "rvec": rvec.flatten().tolist(),
                             "tvec": tvec.flatten().tolist(),
-                            "yaw": math.degrees(angles[1]),
+                            # "yaw": math.degrees(angles[1]),
+                            "yaw": math.degrees(yaw),
                             "distance": float(np.linalg.norm(tvec)),
                             "draw_rvec": rvec, # Numpy for drawing
                             "draw_tvec": tvec
@@ -298,7 +328,7 @@ class CameraServer:
                     frame_counter = 0
                     last_log_time = current_time
                 
-                time.sleep(0.05) # Cap at ~20 FPS
+                time.sleep(0.1) # Cap at ~10 FPS
 
             except KeyboardInterrupt:
                 logger.info("Stopping Camera Server...")

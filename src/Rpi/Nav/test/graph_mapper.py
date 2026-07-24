@@ -8,15 +8,17 @@ import matplotlib.pyplot as plt
 # Add parent directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from Driver.lib.robot_client import RobotClient
+from Vision.lib.camera_client import CameraClient
 
 # --- CONFIGURATION ---
 WALL_THRESHOLD_CM = 5.0 # 5 cm
-JUNCTION_SIZE = 0.1 
+JUNCTION_SIZE = 0.11 
 FRONT_STOP_DIST = 9.0 # CM
 CRUISE_SPEED = 0.1 # meter/s (fix)
 ROTATE_SPEED = 0.5 # rad/s (fix)
 SENSOR_MAX_CM = 40.0
 MERGE_RADIUS = 0.15 # Meters
+LOCAL_MERGE_RADIUS = 0.01 # Meters
 
 class MazeNode:
     def __init__(self, node_id, x, y):
@@ -35,6 +37,7 @@ class MazeNode:
 class GraphMapper:
     def __init__(self):
         self.robot = RobotClient(host="127.0.0.1")
+        self.camera = CameraClient(host="127.0.0.1")
         self.all_nodes = []
         self.node_counter = 0
         
@@ -43,6 +46,8 @@ class GraphMapper:
         self.current_heading = 'E'    
         self.traveled_path = []
         self.reach_goal = False
+        self.aruco5_found = False
+        self.red_object_found = False
 
         # Stacks for raw detection
         self.left_stack = []
@@ -147,16 +152,18 @@ class GraphMapper:
         print(f"   [Move] Node {from_node.id} -> Node {to_node.id}")
 
 
-        def get_dist(): 
-            dx = to_node.x - from_node.x
-            dy = to_node.y - from_node.y
+        def get_dist(start_x, start_y, end_x, end_y): 
+            # dx = to_node.x - from_node.x
+            # dy = to_node.y - from_node.y
+            dx = end_x - start_x
+            dy = end_y - start_y
             dist = math.sqrt(dx*dx + dy*dy)
             target_angle_rad = math.atan2(dy, dx)
             target_angle_deg = math.degrees(target_angle_rad)
 
             return dist, target_angle_deg
         
-        dist, target_angle_deg = get_dist()
+        dist, target_angle_deg = get_dist(from_node.x, from_node.y, to_node.x, to_node.y )
         
         # 1. Rotate
         self.robot.rotate_to_angle(target_angle_deg, speed=ROTATE_SPEED)
@@ -166,8 +173,9 @@ class GraphMapper:
         self.robot.move_distance(dist, max_speed=CRUISE_SPEED)
 
         # 3. Move to target node again to make sure that robot no the target node.
-        dist, target_angle_deg = get_dist()
-        if(dist > 0.1):
+        state = self.robot._wait_for_valid_state()
+        dist, target_angle_deg = get_dist(state['x'], state['y'], to_node.x, to_node.y)
+        if(dist > 0.02):
             self.navigate_to_node(to_node)
 
         time.sleep(0.5)
@@ -176,7 +184,8 @@ class GraphMapper:
         """
         Moves robot in 'heading_char' direction until wall.
         Returns list of NEW nodes found in order.
-        If Dead End, returns Empty List and moves robot back to start pos.
+        If Dead End, returns Empty List and moves 
+        robot back to start pos.
         """
         print(f"\n>>> EXPLORING {heading_char} ...")
         
@@ -194,8 +203,28 @@ class GraphMapper:
         prev_us_l = min(start_state.get('us_l', SENSOR_MAX_CM), SENSOR_MAX_CM)
         prev_us_r = min(start_state.get('us_r', SENSOR_MAX_CM), SENSOR_MAX_CM)
         
-        self.robot.set_velocity(CRUISE_SPEED, 0.0)
+        markers = self.camera.get_all_marker()
+        dist_nearest_tag = 999  
+        if markers:
+            for i in markers:
+                if(abs(i['yaw']) < 45):
+                    dist_nearest_tag = min(dist_nearest_tag,i['distance'])
+        print(f"distance to tag : {dist_nearest_tag} meters")
+
+        for i in range(5) :
+            if( self.camera.get_marker_pose(marker_id=5) ): 
+                self.aruco5_found = True
+                print(f"    [INFO] FOUND TAG 5")
+                break
+
+        for i in range(5) :
+            if( self.camera.is_color(color="RED") ): 
+                self.red_object_found = True
+                print(f"    [INFO] FOUND RED OBJECT")
+                break
         
+        
+        self.robot.set_velocity(CRUISE_SPEED, 0.0)
         hit_wall = False
         start_time = time.time()
         try:
@@ -204,28 +233,21 @@ class GraphMapper:
                 state = self.robot.get_state()
                 if not state: continue
                 
-                # if time.time() - start_time > 5 :
-                #     # if(state['ir'] < 20):
-                #     #     self.robot.stop()
-                #         # self.robot.wall_sweep(sweep_arc=30,speed=0.15)
-                #         # self.robot.set_theta(self.robot.get_snap_angle())
-                #         # self.robot.set_velocity(CRUISE_SPEED, 0.0)
-
-                #     self.robot.rotate_to_angle(self.robot.get_snap_angle())
-                #     self.robot.set_velocity(CRUISE_SPEED, 0.0)
-
-                #     start_time = time.time()
-                
                 ir_dist = state.get('ir', 60)
+                ir_speed = (ir_dist/(3*FRONT_STOP_DIST)) * CRUISE_SPEED
 
-                # Kp = 0.001
-                # speed =  min((ir_dist - FRONT_STOP_DIST + 1) * Kp, CRUISE_SPEED)
-                # self.robot.set_velocity( speed, 0.0 )
+                dx = state['x']- start_x
+                dy = state['y'] - start_y
+                dist_traveled = math.sqrt(dx*dx + dy*dy)
+                # aruco_speed = ((dist_nearest_tag-dist_traveled)/(0.05)) * CRUISE_SPEED
+                aruco_speed = 999
 
-                self.robot.set_velocity( min((ir_dist/(2*FRONT_STOP_DIST)) * CRUISE_SPEED, CRUISE_SPEED), 0.0)
+                self.robot.set_velocity( min( min(ir_speed, aruco_speed), CRUISE_SPEED), 0.0)
+
+
 
                 # Check Front Wall
-                if ir_dist < FRONT_STOP_DIST:
+                if (ir_dist < FRONT_STOP_DIST) or (dist_traveled > (dist_nearest_tag-0.03) ):
                     print("   Wall Hit. Stopping.")
                     hit_wall = True
                 
@@ -234,10 +256,10 @@ class GraphMapper:
                     # if ry > 1: 
                     #     offset = FRONT_STOP_DIST+17.5
 
-                    offset = FRONT_STOP_DIST + (15.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
+                    offset = FRONT_STOP_DIST + (14.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
 
                     rx_offset_cm = {'N': 0, 'E': offset, 'S': 0, 'W': -offset}
-                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-1, 'W': 0}
+                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-2, 'W': 0}
 
                     # force add "(" after hit wall
                     end_rx = rx+(rx_offset_cm[self.current_heading]*0.01)
@@ -265,6 +287,7 @@ class GraphMapper:
             pass
         
         self.robot.stop()
+        time.sleep(0.5)
         
         # --- Process Logic ---
         raw_left = self.resolve_raw_junctions(self.left_stack)
@@ -284,7 +307,7 @@ class GraphMapper:
                 other = all_raw[rem_idx]
                 dist = math.sqrt((current['data']['x'] - other['data']['x'])**2 + 
                                  (current['data']['y'] - other['data']['y'])**2)
-                if dist < MERGE_RADIUS:
+                if dist < LOCAL_MERGE_RADIUS:
                     cluster.append(all_raw.pop(rem_idx))
                 else:
                     rem_idx += 1
@@ -356,7 +379,7 @@ class GraphMapper:
         # self.visualize_graph()
 
         state = self.robot._wait_for_valid_state()
-        if(state['y'] > 1.65):
+        if(state['y'] > 1.5 and (self.aruco5_found or self.red_object_found)): # y > 1.65
             print("======================== Reach Goal ====================")
             for i in self.traveled_path:
                 print(i,end="")
@@ -529,6 +552,8 @@ if __name__ == "__main__":
         # mapper.visualize_graph()
 
         mapper.robot.set_theta(90)
+        time.sleep(0.5)
+
         mapper.traveled_path.append(start_node)
         mapper.run_dfs(start_node)
         print("MAZE FULLY EXPLORED.")
