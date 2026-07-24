@@ -38,18 +38,20 @@ while True:
 
 	# blue masking in hse (hue[0,179], saturation[0,255], value)
 	blueMin = (100,75,75)
-	blueMax = (130,255,255)
+	blueMax = (120,255,255)
 
 	hsv = cv2.cvtColor(image_rotate, cv2.COLOR_BGR2HSV)
 	mask = cv2.inRange(hsv,blueMin,blueMax)
 
 	keypoints = blob_detector.detect(mask)
-	kp_image = cv2.drawKeypoints(mask,keypoints,None)
+	kp_image = cv2.drawKeypoints(mask, keypoints, None,
+							color=(0,0,255), 
+ 							flags= cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
 	# Show the frame
 	# cv2.imshow("Frame", image)
 	cv2.imshow("Frame", kp_image)
 
 	# if the `q` key was pressed, break from the loop
-	if cv2.waitKey(1) & 0xFF == ord("q"):
+	if cv2.waitKey(1) & 0xFF == ord("q"): 
 		break

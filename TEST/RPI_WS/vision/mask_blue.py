@@ -27,12 +27,12 @@ while True:
 
 	# blue masking in hse (hue[0,179], saturation[0,255], value)
 	blueMin = (100,75,75)
-	blueMax = (130,255,255)
+	blueMax = (120,255,255)
 
-	hsv = cv2.cvtColor(image_rotate, cv2.COLOR_BGR2HSV)
+	hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 	mask = cv2.inRange(hsv,blueMin,blueMax)
 
-	masked_image = cv2.bitwise_and(image_rotate, image_rotate, mask=mask)
+	masked_image = cv2.bitwise_and(image, image, mask=mask)
 
 
 	# Show the frame
