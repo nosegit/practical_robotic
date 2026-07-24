@@ -2,12 +2,15 @@
 #define _MOTOR_H
 
 #include <mbed.h>
-#include <chrono>
-#include "Timer.h"
-#include "Callback.h"
+#include "pid.h"
 using namespace std::chrono;
 
 class MOTOR{
+
+  /* PID Variables */
+  const float   _PID_INTERVAL_SEC = 0.05;
+  mbed::Ticker  _PID_TICKER;
+  rtos::Thread  _THREAD_PID;
 
   private:
   /* MOTOR A */
@@ -17,25 +20,30 @@ class MOTOR{
   uint32_t            _PWMA_FREQ = 100e3;
   uint32_t            _PWMA_PERIOD_US;
   mbed::Timer         _ENCODERA_TIMER;
-  unsigned long       _ENCODERA_TIMESTAMP_US;
   float               _ENCODERA_SPEED;
   long long           _ENCODERA_CNT = 0;
   long long           _ENCODERA_CNT_PREV = 0;
+  PIDController       _PIDA;
+  float               _ENCODERA_SET_SPEED = 0;
 
-  
-  // /* MOTOR B */
+  /* MOTOR B */
   mbed::DigitalOut    _DIRB;
   mbed::PwmOut        _PWMB;
   mbed::InterruptIn   _ENCODERB;
   uint32_t            _PWMB_FREQ = 100e3;
   uint32_t            _PWMB_PERIOD_US;
   mbed::Timer         _ENCODERB_TIMER;
-  unsigned long       _ENCODERB_TIMESTAMP_US;
   long long           _ENCODERB_SPEED;
   long long           _ENCODERB_CNT = 0;
   long long           _ENCODERB_CNT_PREV = 0;
+  PIDController       _PIDB;
+  float               _ENCODERB_SET_SPEED = 0;
 
 
+  void _Pid_isr();
+  void _Pid_loop();
+
+  void _Cal_speed();
   void EncoderA_trigger();
   void EncoderB_trigger();
 
@@ -48,6 +56,7 @@ class MOTOR{
   void Set_dir(int motor, int dir);
   void Set_pwm(int motor, float pwm);
   void Set_frquency(int motor, int frequency);
+  void Set_speed(float speedA, float speedB);
   float Get_speed(int motor);
   long long Get_encoder_cnt(int motor){ return motor ? _ENCODERB_CNT : _ENCODERA_CNT ;}
   void Reset_encoder();
