@@ -21,16 +21,21 @@ ODOMETRY Odometry(WHEELRADIUS, WHEELSEPARATION, TICKPERREVOLUTION);
 ROBOTSTATE State;
 COMMUNICATION Communication;
 
+#define LED_PIN P0_13
+mbed::DigitalOut myled(LED_PIN);
+
 void setup() {
   // put your setup code here, to run once:
 
-  Serial.begin(9600);
-  while (!Serial)
-    ;
+  Serial.begin(115200);
+  while (!Serial);
 
   Motor.Begin();
   Odometry.Begin(&Motor, &State);
   Communication.begin(&State, &Serial);
+
+  myled = 1;
+
 }
 
 void loop() {

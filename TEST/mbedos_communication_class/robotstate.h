@@ -18,7 +18,6 @@ struct TelemetryData {
     float us_left = 0.0;
     float us_right = 0.0;
     float ir_front = 0.0;
-    float batt_voltage = 0.0;
     
     // Command (Written by Communication)
     float target_v = 0.0; // m/s
