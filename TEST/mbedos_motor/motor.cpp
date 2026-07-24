@@ -9,10 +9,10 @@ MOTOR::MOTOR(PinName DIRA,PinName PWMA,PinName ENCODERA,PinName DIRB,PinName PWM
   _PWMB_PERIOD_US = 1e6/_PWMB_FREQ; 
 
   _ENCODERA.rise(mbed::callback(this, &MOTOR::EncoderA_trigger));
-  _ENCODERA.fall(mbed::callback(this, &MOTOR::EncoderA_trigger));
+  // _ENCODERA.fall(mbed::callback(this, &MOTOR::EncoderA_trigger));
 
   _ENCODERB.rise(mbed::callback(this, &MOTOR::EncoderB_trigger));
-  _ENCODERB.fall(mbed::callback(this, &MOTOR::EncoderB_trigger));
+  // _ENCODERB.fall(mbed::callback(this, &MOTOR::EncoderB_trigger));
 }
 
 void MOTOR::Begin(){
@@ -55,21 +55,65 @@ void MOTOR::Set_frquency(int motor, int frequency){
   }
 }
 
+float MOTOR::Get_speed(int motor){
+
+  float diff_t;
+
+  switch(motor){
+    case 0: 
+      _ENCODERA_TIMER.stop();
+
+      diff_t = duration_cast<microseconds>(_ENCODERA_TIMER.elapsed_time()).count();
+      _ENCODERA_SPEED = (float)(_ENCODERA_CNT-_ENCODERA_CNT_PREV)*1e6/diff_t;
+
+      _ENCODERA_TIMER.reset();
+      _ENCODERA_TIMER.start();
+
+      _ENCODERA_CNT_PREV = _ENCODERA_CNT;
+
+      return _ENCODERA_SPEED;
+      // break;
+
+    case 1: 
+      _ENCODERB_TIMER.stop();
+      diff_t = duration_cast<microseconds>(_ENCODERB_TIMER.elapsed_time()).count();
+      _ENCODERB_SPEED = (float)(_ENCODERB_CNT-_ENCODERB_CNT_PREV)*1e6/diff_t;
+
+      _ENCODERB_TIMER.reset();
+      _ENCODERB_TIMER.start();
+      
+      _ENCODERB_CNT_PREV = _ENCODERB_CNT;
+      return _ENCODERB_SPEED;
+      // break;
+  }
+}
+
 void MOTOR::EncoderA_trigger(){
-  _ENCODERA_TIMER.stop();
 
-  float diff_t = duration_cast<microseconds>(_ENCODERA_TIMER.elapsed_time()).count();
-  _ENCODERA_SPEED = 1e6/diff_t;
+  _ENCODERA_CNT += _DIRA ? -1:1;
 
-  _ENCODERA_TIMER.reset();
-  _ENCODERA_TIMER.start();
 }
 
 void MOTOR::EncoderB_trigger(){
-  _ENCODERB_TIMER.stop();
-  float diff_t = duration_cast<microseconds>(_ENCODERB_TIMER.elapsed_time()).count();
-  _ENCODERB_SPEED = 1e6/diff_t;
 
-  _ENCODERB_TIMER.reset();
-  _ENCODERB_TIMER.start();
+  _ENCODERB_CNT += _DIRB ? 1:-1;
+
+}
+
+void MOTOR::Reset_encoder(){
+  _ENCODERA_CNT = _ENCODERB_CNT = 0;
+}
+
+
+void MOTOR::Print_info(){
+  if(Serial){
+    for(int i = 0 ; i < 2; i++){
+      Serial.print(i);
+      Serial.print("encoder:");
+      Serial.println(Get_encoder_cnt(i));
+      Serial.print(i);
+      Serial.print("speed:");
+      Serial.println(Get_speed(i));
+    }
+  }
 }

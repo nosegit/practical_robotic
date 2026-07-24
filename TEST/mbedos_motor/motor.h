@@ -18,6 +18,9 @@ class MOTOR{
   uint32_t            _PWMA_PERIOD_US;
   mbed::Timer         _ENCODERA_TIMER;
   float               _ENCODERA_SPEED;
+  long long           _ENCODERA_CNT = 0;
+  long long           _ENCODERA_CNT_PREV = 0;
+
   
   // /* MOTOR B */
   mbed::DigitalOut    _DIRB;
@@ -27,6 +30,9 @@ class MOTOR{
   uint32_t            _PWMB_PERIOD_US;
   mbed::Timer         _ENCODERB_TIMER;
   float               _ENCODERB_SPEED;
+  long long           _ENCODERB_CNT = 0;
+  long long           _ENCODERB_CNT_PREV = 0;
+
 
   void EncoderA_trigger();
   void EncoderB_trigger();
@@ -40,7 +46,10 @@ class MOTOR{
   void Set_dir(int motor, int dir);
   void Set_pwm(int motor, int pwm);
   void Set_frquency(int motor, int frequency);
-  float Get_speed(int motor){ return motor ? _ENCODERB_SPEED : _ENCODERA_SPEED; }
+  float Get_speed(int motor);
+  long long Get_encoder_cnt(int motor){ return motor ? _ENCODERB_CNT : _ENCODERA_CNT ;}
+  void Reset_encoder();
+  void Print_info();
 
 };
 
