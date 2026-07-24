@@ -4,7 +4,7 @@ import threading
 import time
 from dataclasses import dataclass
 
-SERIAL_PORT = '/dev/ttyACM0'
+SERIAL_PORT = '/dev/ttyUSB0' # Check your port
 BAUD_RATE = 115200
 
 # Protocol Constants
@@ -38,26 +38,40 @@ class RobotDriver:
         self.thread.start()
 
     def close(self):
-        self.running = False
-        self.ser.close()
+        """Clean shutdown to prevent errors."""
+        self.running = False # Signal thread to stop
+        
+        # 1. Wait for thread to finish (CRITICAL FIX)
+        if self.thread.is_alive():
+            self.thread.join(timeout=1.0)
+            
+        # 2. Now it's safe to close the port
+        if self.ser.is_open:
+            self.ser.close()
 
     def send_velocity(self, v, w):
-        # Pack Command: 0x5A + v + w + CS
         try:
             payload = struct.pack(COMMAND_FMT, int(v*1000), int(w*1000))
             cs = 0
             for b in payload: cs ^= b
-            self.ser.write(b'\x5A' + payload + bytes([cs]))
+            
+            with self.lock:
+                if self.ser.is_open:
+                    self.ser.write(b'\x5A' + payload + bytes([cs]))
         except Exception as e:
-            print(f"Error sending: {e}")
+            print(f"[Driver] Send Error: {e}")
 
     def get_state(self):
         with self.lock: return self.latest_state
 
     def _read_loop(self):
         while self.running:
-            if self.ser.in_waiting >= PACKET_SIZE:
-                try:
+            try:
+                # Check if port is open before accessing property
+                if not self.ser.is_open:
+                    break
+                    
+                if self.ser.in_waiting >= PACKET_SIZE:
                     if self.ser.read(1) != b'\xA5': continue
                     data = self.ser.read(PACKET_SIZE - 1)
                     if len(data) != PACKET_SIZE - 1: continue
@@ -65,9 +79,12 @@ class RobotDriver:
                     payload = data[:-1]
                     if self._calc_checksum(payload) == data[-1]:
                         self._parse(payload)
-                except: pass
-            else:
-                time.sleep(0.002)
+                else:
+                    time.sleep(0.002)
+            except Exception:
+                # Silently ignore errors during shutdown
+                if not self.running: break
+                pass
 
     def _calc_checksum(self, payload):
         cs = 0
