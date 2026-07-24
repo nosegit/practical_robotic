@@ -56,7 +56,7 @@ def detect_shapes_from_mask(mask, color_name):
 
     # Loop over every contour found
     for c in contours:
-        if cv2.contourArea(c) < 100: # Ignore noise
+        if cv2.contourArea(c) < 1100: # Ignore noise
             continue
             
         # --- Get Shape Name ---
@@ -94,16 +94,34 @@ def detect_shapes_from_mask(mask, color_name):
 # initialize color mask range in hue (hue[0,179], saturation[0,255], value)
 color_range = {
     'RED'       : { 'lower1': (0, 100, 100),    'upper1': (10, 255, 255),   'lower2': (170, 100, 100),  'upper2': (179, 255, 255)},
-    'GREEN'     : { 'lower1': (40, 100, 100),   'upper1': (80, 255, 255) },
-    'BLUE'      : { 'lower1': (80,190,20),      'upper1': (120,255,255) },
-    'PURPLE'    : { 'lower1': (130, 100, 100),  'upper1': (165, 255, 255) }
+    'GREEN'     : { 'lower1': (40, 80, 0),   'upper1': (90, 255, 255) },
+    'BLUE'      : { 'lower1': (100,190,20),      'upper1': (120,255,255) },
+    # 'PURPLE'    : { 'lower1': (120, 100, 100),  'upper1': (165, 255, 255) }
+    'PURPLE'    : { 'lower1': (125, 80, 25),  'upper1': (140, 120, 255) }
 }
 
-# Initialise the camera and create a reference to it
+# --- REPLACE THESE WITH YOUR NUMBERS FROM STEP 1 ---
+MY_SHUTTER = 23846      # Example: 20ms
+MY_GAIN = 2.0           # Example: Low ISO
+MY_AWB = (1.4530320167541504, 1.8029404878616333)     # Example: (Red_Gain, Blue_Gain)
+
 camera = picamera2.Picamera2()
-config = camera.create_preview_configuration(main={'format': 'RGB888', 'size' : (640,480)})
+config = camera.create_preview_configuration(main={'format': 'RGB888', 'size': (640, 480)})
 camera.configure(config)
 camera.start()
+
+# --- APPLY MANUAL CONTROLS ---
+# AeEnable=False: Turn off Auto Exposure
+# AwbEnable=False: Turn off Auto White Balance
+controls = {
+    "AeEnable": False,
+    "ExposureTime": MY_SHUTTER,
+    "AnalogueGain": MY_GAIN,
+    "AwbEnable": False,
+    "ColourGains": MY_AWB
+}
+
+camera.set_controls(controls)
 
 # Allow the camera time to warm up
 time.sleep(0.1)
@@ -133,7 +151,7 @@ if __name__ == "__main__" :
             (x, y, w, h) = s['location']
             label = f"{s['color']} {s['shape']}"
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 0), 2)
-            cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1)
+            cv2.putText(image, label, (int(x+w/4), int(y+h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
         
         cv2.imshow("Shape and Color Detection", image)
 

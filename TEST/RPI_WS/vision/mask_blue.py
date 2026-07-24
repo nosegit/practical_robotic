@@ -7,18 +7,38 @@ import picamera2
 import time
 import cv2
 
-# Initialise the camera and create a reference to it
+# --- REPLACE THESE WITH YOUR NUMBERS FROM STEP 1 ---
+MY_SHUTTER = 23846      # Example: 20ms
+MY_GAIN = 2.0           # Example: Low ISO
+MY_AWB = (1.4530320167541504, 1.8029404878616333)     # Example: (Red_Gain, Blue_Gain)
+
 camera = picamera2.Picamera2()
-config = camera.create_preview_configuration(main={'format': 'RGB888', 'size' : (640,480)})
+config = camera.create_preview_configuration(main={'format': 'RGB888', 'size': (640, 480)})
 camera.configure(config)
 camera.start()
 
+# --- APPLY MANUAL CONTROLS ---
+# AeEnable=False: Turn off Auto Exposure
+# AwbEnable=False: Turn off Auto White Balance
+controls = {
+    "AeEnable": False,
+    "ExposureTime": MY_SHUTTER,
+    "AnalogueGain": MY_GAIN,
+    "AwbEnable": False,
+    "ColourGains": MY_AWB
+}
+
+camera.set_controls(controls)
 # Allow the camera time to warm up
 time.sleep(0.1)
 
 blueHueMin = 100
-blueSatMin = 75
-blueValMin = 75
+blueSatMin = 190
+blueValMin = 20
+
+blueHueMax = 120
+blueSatMax = 255
+blueValMax = 255
 # capture frames from the camera
 while True:
 
@@ -29,8 +49,8 @@ while True:
 
 
 	# blue masking in hse (hue[0,179], saturation[0,255], value)
-	blueMin = (blueHueMin,blueSatMin,blueValMin)
-	blueMax = (120,255,255)
+	blueMin = (blueHueMin, blueSatMin, blueValMin)
+	blueMax = (blueHueMax, blueSatMax, blueValMax)
 
 	hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 	mask = cv2.inRange(hsv,blueMin,blueMax)
@@ -40,7 +60,7 @@ while True:
 
 	# Show the frame
 	# cv2.imshow("Frame", image)
-	cv2.imshow("Frame", masked_image)
+	cv2.imshow("blue Frame", masked_image)
 
 	key = cv2.waitKey(1) & 0xFF
 	if key == 27 : # esc
@@ -63,3 +83,28 @@ while True:
 	elif key == ord("c"): 
 		blueValMin = blueValMin + 5
 		print(f"blueValMin : {blueValMin}")
+	elif  key == ord("t"):
+		blueHueMax = blueHueMax - 5
+		print(f"blueHueMax : {blueHueMax}")
+	elif key == ord("u"):
+		blueHueMax = blueHueMax + 5
+		print(f"blueHueMax : {blueHueMax}")
+	elif key == ord("g"): 
+		blueSatMax = blueSatMax - 5
+		print(f"blueSatMax : {blueSatMax}")
+	elif key == ord("j"): 
+		blueSatMax = blueSatMax + 5 
+		print(f"blueSatMax : {blueSatMax}")
+	elif key == ord("v"): 
+		blueValMax = blueValMax - 5
+		print(f"blueValMax : {blueValMax}")
+	elif key == ord("n"): 
+		blueValMax = blueValMax + 5
+		print(f"blueValMax : {blueValMax}")
+	elif key == ord("p"):
+		print(f"blueMin : ({blueHueMin}, {blueSatMin}, {blueValMin})")
+		print(f"blueMax : ({blueHueMax}, {blueSatMax}, {blueValMax})")
+
+
+
+		

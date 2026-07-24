@@ -2,6 +2,8 @@
 #define _ODOMETRY_H
 
 #include <mbed.h>
+#include "motor.h"
+using namespace std::chrono;
 
 // A simple structure to return two values
 struct WheelSpeeds {
@@ -27,15 +29,16 @@ public:
   // ...and returns the target speeds for each wheel (in m/s).
   WheelSpeeds calculateWheelSpeeds(float linear_vel, float angular_vel);
 
-  // --- 2. Forward Kinematics (Odometry) ---
-  // Takes the *total* accumulated encoder ticks...
-  // ...and updates the robot's internal X, Y, and Theta pose.
-  void updatePose(long total_ticks_left, long total_ticks_right);
-
   // --- Helpers ---
-  Pose getPose(); // Get the current pose
-  void reset();     // Reset the pose (x, y, theta) to zero
-  float convertMetersPerSecToTicksPerSec(float input);  // convert m/s to ticks/s
+  Pose getPose() { return _pose; }; // Get the current pose
+  void reset() { _pose = {0,0,0}; };     // Reset the pose (x, y, theta) to zero
+  float meterToTick(float input);  // convert m/s to ticks/s
+  void printPose();
+
+  void Begin(MOTOR* motor_ptr);
+
+
+
 
 private:
   // --- Robot Constants ---
@@ -44,13 +47,25 @@ private:
   float _ticks_per_revolution;
 
   // --- Pre-calculated Values ---
-  float _distance_per_tick; // (2 * PI * R) / Ticks
+  float _meters_per_tick; // (2 * PI * R) / Ticks
   float _wheel_circumference; // 2*pi*r
 
   // --- Internal State ---
   Pose _pose; // The robot's current pose
   long _last_ticks_left;
   long _last_ticks_right;
+
+
+  // --- Thread ---
+  const milliseconds TARGET_LOOP_PERIOD = 10ms;
+  rtos::Thread  _THREAD;
+  MOTOR* _MOTOR;
+  void loop();
+
+  // --- 2. Forward Kinematics (Odometry) ---
+  // Takes the *total* accumulated encoder ticks...
+  // ...and updates the robot's internal X, Y, and Theta pose.
+  void updatePose(long total_ticks_left, long total_ticks_right);
 
 
 };
