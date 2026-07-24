@@ -150,23 +150,51 @@ if __name__ == "__main__":
     try:
 
         robot.start()
-        
+
+        print("wait for robot to initialize...",flush=False)
+        while(robot.packet_count < 5):
+            print(".",flush=False)
+            time.sleep(0.5)
+        print(" done.")
+
         print("Starting Square Path Routine...")
         # Move Forward
         robot.send_velocity(0.05, 0.0) 
         time.sleep(1)
-        
-        # Turn
-        robot.send_velocity(0.0, 1.57)
+        state = robot.get_state()
+        print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} USL={state.us_l} USR={state.us_r} IR={state.ir} | Packets: {robot.packet_count}")
+
+        for i in range(3):       
+            # Turn
+            robot.send_velocity(0.0, 0.157)
+            time.sleep(1)
+            robot.send_velocity(0.0, 0.0)
+            state = robot.get_state()
+            print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} USL={state.us_l} USR={state.us_r} IR={state.ir} | Packets: {robot.packet_count}")
+            time.sleep(0.5)
+
+        for i in range(3):  
+            # Turn
+            robot.send_velocity(0.0, -0.157)
+            time.sleep(1)
+            robot.send_velocity(0.0, 0.0)
+            state = robot.get_state()
+            print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} USL={state.us_l} USR={state.us_r} IR={state.ir} | Packets: {robot.packet_count}")
+            time.sleep(0.5)
+
+        robot.send_velocity(-0.05, 0.0) 
         time.sleep(1)
+        state = robot.get_state()
+        print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} USL={state.us_l} USR={state.us_r} IR={state.ir} | Packets: {robot.packet_count}")
+
         
         # Stop
         robot.send_velocity(0.0, 0.0)
         
-        while True:
-            state = robot.get_state()
-            print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} | Packets: {robot.packet_count}")
-            time.sleep(0.1)
+        # while True:
+        #     state = robot.get_state()
+        #     print(f"State: X={state.x:.2f} Y={state.y:.2f} Theta={state.theta:.2f} USL={state.us_l} USR={state.us_r} IR={state.ir} | Packets: {robot.packet_count}")
+        #     time.sleep(0.1)
             
     except KeyboardInterrupt:
         robot.send_velocity(0, 0)
