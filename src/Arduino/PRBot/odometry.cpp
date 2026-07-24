@@ -62,8 +62,8 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   // We fuse the CHANGES in angle (Deltas), not the absolute angle.
   // Alpha is usually 0.95 to 0.98 (Trust Gyro for fast turns, Encoder for slow drift)
   // const float ALPHA = 0.99; 
-  // const float ALPHA = 0.0; 
-  const float ALPHA = 1.0; 
+  const float ALPHA = 0.0; 
+  // const float ALPHA = 1.0; 
 
 
   float delta_theta_fused = (ALPHA * delta_theta_gyro) + ((1.0 - ALPHA) * delta_theta_enc);
@@ -94,15 +94,15 @@ void ODOMETRY::Begin(MOTOR* motor_ptr, ROBOTSTATE* state_prt){
   // 1. CALIBRATION ROUTINE
   if (!IMU.begin()) { /* Handle Error */ }
   
-  // Take 1000 samples to find the "Zero" offset
-  float sum = 0;
-  for(int i=0; i<1000; i++) {
-    while (!IMU.gyroscopeAvailable()); // Wait for data
-    float x, y, z;
-    IMU.readGyroscope(x, y, z);
-    sum += z;
-  }
-  _gyro_bias = sum / 1000.0;
+  // // Take 1000 samples to find the "Zero" offset
+  // float sum = 0;
+  // for(int i=0; i<1000; i++) {
+  //   while (!IMU.gyroscopeAvailable()); // Wait for data
+  //   float x, y, z;
+  //   IMU.readGyroscope(x, y, z);
+  //   sum += z;
+  // }
+  // _gyro_bias = sum / 1000.0;
 
   _THREAD.start(mbed::callback(this, &ODOMETRY::loop));
 
@@ -138,13 +138,13 @@ void ODOMETRY::loop(){
     //     gz_rads = 0.0;
     // }
 
-    if ( (abs(gz_rads) < GYRO_DEADBAND_RADS)) {
-        gz_rads = 0.0;
-    }
-
-    // if ( ((diff_L == 0) && (diff_R == 0))  ) {
+    // if ( (abs(gz_rads) < GYRO_DEADBAND_RADS)) {
     //     gz_rads = 0.0;
     // }
+
+    if ( ((diff_L == 0) && (diff_R == 0))  ) {
+        gz_rads = 0.0;
+    }
 
 
     // Calculate precise DT

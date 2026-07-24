@@ -18,24 +18,25 @@ def main():
     print("Pose reset to (0,0,0).")
     time.sleep(1.0)
 
-    for side in range(4):
-        print(f"Starting side {side + 1} of the square.")
+    for n in range(5):
+        for side in range(4):
+            print(f"Starting side {side + 1} of the square.")
 
-        # Move forward
-        robot.move_distance(distance_meters=0.3, max_speed=linear_speed)
+            # # Move forward
+            # robot.move_distance(distance_meters=0.3, max_speed=linear_speed)
 
-        # Stop before turning
-        robot.set_velocity(0.0, 0.0)
-        time.sleep(0.5)
+            # # Stop before turning
+            # robot.set_velocity(0.0, 0.0)
+            # time.sleep(0.5)
 
-        # Turn 90 degrees
-        # robot.set_velocity(0.0, math.pi / 4)  # Turn at 45 degrees/sec
-        # time.sleep(2.0)  # Turn for 2 seconds to achieve ~90 degrees
-        robot.rotate_to_angle((side + 1) * (90), speed= 0.5)
+            # Turn 90 degrees
+            # robot.set_velocity(0.0, math.pi / 4)  # Turn at 45 degrees/sec
+            # time.sleep(2.0)  # Turn for 2 seconds to achieve ~90 degrees
+            robot.rotate_to_angle((side + 1) * (90), speed= 0.5)
 
-        # Stop after turning
-        robot.set_velocity(0.0, 0.0)
-        time.sleep(0.5)
+            # Stop after turning
+            robot.set_velocity(0.0, 0.0)
+            time.sleep(0.5)
 
     print("Square routine finished.")
 
