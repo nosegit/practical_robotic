@@ -19,7 +19,7 @@ It includes a fully simulated environment to test **Depth First Search (DFS)** e
 | File | Role | Description |
 | --- | --- | --- |
 | demo_run.py | Runner | The main simulation script. It mocks the robot hardware, runs the exploration, and calls the solver upon completion. |
-| lib/maze_generator.py | Data | A procedural generator that creates complex 10x10 mazes (100 nodes) with loops and dead ends to stress-test the algorithms. |
+| lib/maze_generator.py | Data | A procedural generator that creates complex 6x6 mazes (36 nodes) with loops and dead ends to stress-test the algorithms. |
 
 ### Real Robot
 
