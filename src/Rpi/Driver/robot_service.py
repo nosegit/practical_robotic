@@ -15,6 +15,8 @@ from lib.robot_driver import RobotDriver
 SERIAL_PORT = '/dev/ttyUSB0'
 BAUD_RATE = 115200
 HOST_IP = "0.0.0.0"
+PUB_PORT = 5555 # port that publish robot data (public/subscribe)
+REP_PORT = 5556 # port that request robot command (requeat/reply)
 
 # --- LOGGING SETUP ---
 # Options: logging.DEBUG (Show everything), logging.INFO (Show important events), logging.WARNING (Show only errors)
@@ -45,19 +47,19 @@ def main():
     # Socket A: TELEMETRY (PUB)
     try:
         pub = context.socket(zmq.PUB)
-        pub.bind(f"tcp://{HOST_IP}:5555")
-        logger.info(f"Telemetry Publisher bound to {HOST_IP}:5555")
+        pub.bind(f"tcp://{HOST_IP}:{PUB_PORT}")
+        logger.info(f"Telemetry Publisher bound to {HOST_IP}:{PUB_PORT}}")
     except zmq.ZMQError as e:
-        logger.critical(f"Could not bind PUB port 5555: {e}")
+        logger.critical(f"Could not bind PUB port {PUB_PORT}: {e}")
         return
     
     # Socket B: COMMANDS (REP)
     try:
         rep = context.socket(zmq.REP)
-        rep.bind(f"tcp://{HOST_IP}:5556")
-        logger.info(f"Command Listener bound to {HOST_IP}:5556")
+        rep.bind(f"tcp://{HOST_IP}:{REP_PORT}")
+        logger.info(f"Command Listener bound to {HOST_IP}:{REP_PORT}")
     except zmq.ZMQError as e:
-        logger.critical(f"Could not bind REP port 5556: {e}")
+        logger.critical(f"Could not bind REP port {REP_PORT}: {e}")
         return
 
     logger.info("Service is running. Press Ctrl+C to stop.")
