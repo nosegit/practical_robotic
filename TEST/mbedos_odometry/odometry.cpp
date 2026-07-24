@@ -61,10 +61,10 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   // --- 3. SENSOR FUSION (Complementary Filter) ---
   // We fuse the CHANGES in angle (Deltas), not the absolute angle.
   // Alpha is usually 0.95 to 0.98 (Trust Gyro for fast turns, Encoder for slow drift)
+  // const float ALPHA = 0.98; 
   const float ALPHA = 0.98; 
 
   float delta_theta_fused = (ALPHA * delta_theta_gyro) + ((1.0 - ALPHA) * delta_theta_enc);
-
 
   // --- 4. UPDATE GLOBAL POSE ---
   // Use the FUSED theta for the heading update
@@ -80,25 +80,22 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   if( _pose.theta < -M_PI ) { _pose.theta += 2*M_PI; }
 }
 
-void ODOMETRY::Begin(rtos::Mutex* i2c_lock_ptr, MOTOR* motor_ptr){
+void ODOMETRY::Begin(MOTOR* motor_ptr){
 
   _MOTOR = motor_ptr;
-  _I2CLOCK = i2c_lock_ptr;
 
   // 1. CALIBRATION ROUTINE
-  _I2CLOCK->lock();
   if (!IMU.begin()) { /* Handle Error */ }
   
-  // Take 100 samples to find the "Zero" offset
+  // Take 1000 samples to find the "Zero" offset
   float sum = 0;
-  for(int i=0; i<100; i++) {
-      float x, y, z;
-      IMU.readGyroscope(x, y, z);
-      sum += z;
-      delay(5);
+  for(int i=0; i<1000; i++) {
+    while (!IMU.gyroscopeAvailable()); // Wait for data
+    float x, y, z;
+    IMU.readGyroscope(x, y, z);
+    sum += z;
   }
-  _gyro_bias = sum / 100.0;
-  _I2CLOCK->unlock();
+  _gyro_bias = sum / 1000.0;
 
   _THREAD.start(mbed::callback(this, &ODOMETRY::loop));
 
@@ -108,7 +105,7 @@ void ODOMETRY::loop(){
 
   for(;;){
 
-    // --- PHASE 1: HARDWARE (Needs Lock) ---
+    // --- PHASE 1: HARDWARE ---
     // A. Read Motors (Fast, Atomic)
     long ticks_L, ticks_R;
     ticks_L = _MOTOR->Get_encoder_cnt(0);
@@ -117,13 +114,22 @@ void ODOMETRY::loop(){
     // B. Read Gyro (Slow, I2C)
     float gx, gy, gz;
     
-    _I2CLOCK->lock();      // <--- LOCK START
     IMU.readGyroscope(gx, gy, gz);
-    _I2CLOCK->unlock();    // <--- LOCK END (Release immediately!)
 
-    // --- PHASE 2: PRE-PROCESSING (No Lock needed) ---
+    // --- PHASE 2: PRE-PROCESSING ---
     // Convert units here, keep the math function clean
     float gz_rads = (gz - _gyro_bias) * (PI / 180.0);
+    gz_rads *= GYRO_SCALE;
+
+    // APPLY DEADBAND and Zero Velocity Clamp
+    // Deadband to filter noise while moving straight,
+    // Zero Velocity Clamp to lock the heading while standing still
+    // If the rotation is extremely slow or encoder not moving, force it to exactly 0.0
+    long diff_L = ticks_L - _last_ticks_left;
+    long diff_R = ticks_R - _last_ticks_right;
+    if ( (abs(gz_rads) < GYRO_DEADBAND_RADS) || ((diff_L == 0) && (diff_R == 0))  ) {
+        gz_rads = 0.0;
+    }
     
     // Calculate precise DT
     unsigned long current_micros = micros();

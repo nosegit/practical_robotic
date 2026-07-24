@@ -16,9 +16,6 @@ MOTOR Motor(MOTORDIRA, MOTORPWMA, MOTORENCODERA, MOTORDIRB, MOTORPWMB, MOTORENCO
 #define TICKPERREVOLUTION 1788    // 298*6
 ODOMETRY Odometry(WHEELRADIUS, WHEELSEPARATION, TICKPERREVOLUTION);
 
-rtos::Mutex I2C_LOCK;
-
-
 void setup() {
   // put your setup code here, to run once:
 
@@ -26,9 +23,9 @@ void setup() {
   Serial.begin(9600);
 
   Motor.Begin();
-  Odometry.Begin(&I2C_LOCK, &Motor);
+  Odometry.Begin( &Motor);
 
-  for(int i = 0 ; i < 4 ; i++){
+  for(int i = 0 ; i < 1 ; i++){
     Odometry.reset();
     test_90degree();
     delay(1000);
@@ -41,6 +38,9 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+
+  Odometry.printPose();
+  delay(1000);
 
 }
 
@@ -63,7 +63,7 @@ void test_10cm(){
 }
 
 void test_90degree(){
-  WheelSpeeds speed = Odometry.calculateWheelSpeeds(0, 0.25);
+  WheelSpeeds speed = Odometry.calculateWheelSpeeds(0, 0.5);
   Motor.Set_speed( Odometry.meterToTick(speed.left), Odometry.meterToTick(speed.right) );
 
   while(1){

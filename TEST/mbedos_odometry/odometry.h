@@ -36,7 +36,7 @@ public:
   float meterToTick(float input);  // convert m/s to ticks/s
   void printPose();
 
-  void Begin(rtos::Mutex* i2c_lock_ptr, MOTOR* motor_ptr);
+  void Begin(MOTOR* motor_ptr);
 
 
 
@@ -64,8 +64,9 @@ private:
   void loop();
 
   // --- IMU ---
-  rtos::Mutex* _I2CLOCK;
   float _gyro_bias;
+  const float GYRO_DEADBAND_RADS = 1 * ( PI / 180.0 );
+  const float GYRO_SCALE = 1.14; // 360/316
 
   // --- 2. Forward Kinematics (Odometry) ---
   // Takes the *total* accumulated encoder ticks...
