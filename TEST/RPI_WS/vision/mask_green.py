@@ -16,6 +16,9 @@ camera.start()
 # Allow the camera time to warm up
 time.sleep(0.1)
 
+greenHueMin = 40
+greenSatMin = 100
+greenValMin = 100
 # capture frames from the camera
 while True:
 
@@ -26,7 +29,7 @@ while True:
 
 
 	# green masking in hse (hue[0,179], saturation[0,255], value)
-	greenMin = (40, 50, 50)
+	greenMin = (greenHueMin, greenSatMin, greenValMin)
 	greenMax = (80, 255, 255)
 
 	hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -39,6 +42,24 @@ while True:
 	# cv2.imshow("Frame", image)
 	cv2.imshow("Frame", masked_image)
 
-	# if the `q` key was pressed, break from the loop
-	if cv2.waitKey(1) & 0xFF == ord("q"):
+	key = cv2.waitKey(1) & 0xFF
+	if key == 27 : # esc
 		break
+	elif  key == ord("q"):
+		greenHueMin = greenHueMin - 5
+		print(f"greenHueMin : {greenHueMin}")
+	elif key == ord("e"):
+		greenHueMin = greenHueMin + 5
+		print(f"greenHueMin : {greenHueMin}")
+	elif key == ord("a"): 
+		greenSatMin = greenSatMin - 5
+		print(f"greenSatMin : {greenSatMin}")
+	elif key == ord("d"): 
+		greenSatMin = greenSatMin + 5 
+		print(f"greenSatMin : {greenSatMin}")
+	elif key == ord("z"): 
+		greenValMin = greenValMin - 5
+		print(f"greenValMin : {greenValMin}")
+	elif key == ord("c"): 
+		greenValMin = greenValMin + 5
+		print(f"greenValMin : {greenValMin}")
