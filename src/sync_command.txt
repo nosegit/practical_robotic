@@ -4,3 +4,5 @@ rsync -avz --exclude '.venv/' pi@192.168.50.5:/home/pi/WS/Rpi ./
 
 rsync -avz ./Rpi pi@192.168.50.5:/home/pi/WS
 rsync -avz ./Rpi pi@144.32.70.232:/home/pi/WS
+
+ssh -xc pi@$PI_IP

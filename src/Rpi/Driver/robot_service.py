@@ -48,7 +48,7 @@ def main():
     try:
         pub = context.socket(zmq.PUB)
         pub.bind(f"tcp://{HOST_IP}:{PUB_PORT}")
-        logger.info(f"Telemetry Publisher bound to {HOST_IP}:{PUB_PORT}}")
+        logger.info(f"Telemetry Publisher bound to {HOST_IP}:{PUB_PORT}")
     except zmq.ZMQError as e:
         logger.critical(f"Could not bind PUB port {PUB_PORT}: {e}")
         return

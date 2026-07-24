@@ -108,7 +108,7 @@ def main():
     print("Initializing Client...")
     robot = RobotClient(host="127.0.0.1")
 
-    if not robot.wait_for_connection():
+    if not robot._wait_for_valid_state():
         print("❌ ERROR: Robot Service is NOT running!")
         print("   -> Run 'python robot_service.py' first.")
         robot.close()
