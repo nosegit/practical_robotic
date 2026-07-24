@@ -1,5 +1,6 @@
 #include "motor.h"
 #include "odometry.h"
+#include "robotstate.h"
 
 
 #define MOTORDIRA       P0_4
@@ -16,6 +17,8 @@ MOTOR Motor(MOTORDIRA, MOTORPWMA, MOTORENCODERA, MOTORDIRB, MOTORPWMB, MOTORENCO
 #define TICKPERREVOLUTION 1788    // 298*6
 ODOMETRY Odometry(WHEELRADIUS, WHEELSEPARATION, TICKPERREVOLUTION);
 
+ROBOTSTATE State;
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -23,15 +26,15 @@ void setup() {
   Serial.begin(9600);
 
   Motor.Begin();
-  Odometry.Begin( &Motor);
+  Odometry.Begin(&Motor, &State);
 
-  for(int i = 0 ; i < 1 ; i++){
-    Odometry.reset();
-    test_90degree();
-    delay(1000);
-  }
+  // for(int i = 0 ; i < 1 ; i++){
+  //   Odometry.reset();
+  //   test_90degree();
+  //   delay(1000);
+  // }
 
-  // test_10cm();
+  test_10cm();
 
 
 }

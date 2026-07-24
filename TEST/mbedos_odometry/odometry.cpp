@@ -71,6 +71,10 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   // Use Midpoint Integration for X/Y (using half the fused change)
   _pose.x += delta_distance_center * cos(_pose.theta + (delta_theta_fused / 2.0));
   _pose.y += delta_distance_center * sin(_pose.theta + (delta_theta_fused / 2.0));
+
+  // update linear and angular velocity;
+  _linear_velocity_m = delta_distance_center;
+  _angular_velocity_m = delta_theta_fused;
   
   // Update Heading
   _pose.theta += delta_theta_fused;
@@ -80,9 +84,10 @@ void ODOMETRY::updatePose(long total_ticks_left, long total_ticks_right, float g
   if( _pose.theta < -M_PI ) { _pose.theta += 2*M_PI; }
 }
 
-void ODOMETRY::Begin(MOTOR* motor_ptr){
+void ODOMETRY::Begin(MOTOR* motor_ptr, ROBOTSTATE* state_prt){
 
   _MOTOR = motor_ptr;
+  _STATE = state_prt;
 
   // 1. CALIBRATION ROUTINE
   if (!IMU.begin()) { /* Handle Error */ }
@@ -140,6 +145,11 @@ void ODOMETRY::loop(){
     // This function knows NOTHING about I2C or Libraries.
     // It only knows numbers.
     updatePose(ticks_L, ticks_R, gz_rads, dt);
+
+    if(_STATE){
+      _STATE->setPose(_pose.x, _pose.y, _pose.theta);
+      _STATE->setVelocity(_linear_velocity_m, _angular_velocity_m);
+    }
 
     // --- PHASE 4: TIMING ---
     rtos::ThisThread::sleep_for(TARGET_LOOP_PERIOD);

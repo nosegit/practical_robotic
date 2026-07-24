@@ -4,6 +4,7 @@
 #include <mbed.h>
 #include <Arduino_LSM9DS1.h>
 #include "motor.h"
+#include "robotstate.h"
 using namespace std::chrono;
 
 // A simple structure to return two values
@@ -36,12 +37,15 @@ public:
   float meterToTick(float input);  // convert m/s to ticks/s
   void printPose();
 
-  void Begin(MOTOR* motor_ptr);
+  void Begin(MOTOR* motor_ptr, ROBOTSTATE* state_prt);
 
 
 
 
 private:
+
+  ROBOTSTATE* _STATE;
+
   // --- Robot Constants ---
   float _wheel_radius;
   float _wheel_separation;
@@ -55,6 +59,8 @@ private:
   Pose _pose; // The robot's current pose
   long _last_ticks_left;
   long _last_ticks_right;
+  float _linear_velocity_m;
+  float _angular_velocity_m;
 
 
   // --- Thread ---
