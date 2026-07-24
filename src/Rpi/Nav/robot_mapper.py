@@ -68,20 +68,20 @@ def process_sensor_reading(state, raw_dist_cm, mount_x, mount_y, mount_angle_deg
         # Calculate total distance and number of steps
         dx = obs_x - sens_world_x
         dy = obs_y - sens_world_y
-        total_dist = math.sqrt(dx*dx + dy*dy)
-        steps = int(total_dist / RAY_STEP_SIZE)
+        # total_dist = math.sqrt(dx*dx + dy*dy)
+        # steps = int(total_dist / RAY_STEP_SIZE)
         
-        # Iterate along the ray
-        for i in range(steps):
-            # Interpolate position (0.0 to 1.0)
-            # We skip the very last step to avoid clearing the wall itself
-            alpha = i / steps
+        # # Iterate along the ray
+        # for i in range(steps):
+        #     # Interpolate position (0.0 to 1.0)
+        #     # We skip the very last step to avoid clearing the wall itself
+        #     alpha = i / steps
             
-            clear_x = sens_world_x + (dx * alpha)
-            clear_y = sens_world_y + (dy * alpha)
+        #     clear_x = sens_world_x + (dx * alpha)
+        #     clear_y = sens_world_y + (dy * alpha)
             
-            # Send "Free Space" update (Negative Value)
-            map_client.send_obstacle(clear_x, clear_y, confidence=CLEAR_CONFIDENCE)
+        #     # Send "Free Space" update (Negative Value)
+        #     map_client.send_obstacle(clear_x, clear_y, confidence=CLEAR_CONFIDENCE)
 
         # --- C. MARK OBSTACLE ---
         # Send "Occupied" update (Positive Value)
@@ -101,10 +101,10 @@ def main():
                 continue
 
             # 1. Front IR
-            # if 'ir' in state:
-            #     process_sensor_reading(state, state['ir'], 
-            #                          IR_OFFSET_X, IR_OFFSET_Y, 0, 
-            #                          IR_MIN_CM, IR_MAX_CM, map_client)
+            if 'ir' in state:
+                process_sensor_reading(state, state['ir'], 
+                                     IR_OFFSET_X, IR_OFFSET_Y, 0, 
+                                     IR_MIN_CM, IR_MAX_CM, map_client)
 
             # 2. Left US
             if 'us_l' in state:

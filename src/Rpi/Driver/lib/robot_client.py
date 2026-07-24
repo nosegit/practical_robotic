@@ -70,7 +70,7 @@ class RobotClient:
         start_x, start_y = start_state['x'], start_state['y']
         
         # P-Controller Gains
-        Kp = 2.0   # Speed = Error * Kp
+        Kp = 0.75   # Speed = Error * Kp
         MIN_SPEED = 0.01 # Minimum power to move motors
         TOLERANCE = 0.005 # 1cm accuracy
 

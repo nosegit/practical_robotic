@@ -10,11 +10,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from Driver.lib.robot_client import RobotClient
 
 # --- CONFIGURATION ---
-WALL_THRESHOLD_CM = 5.0 
+WALL_THRESHOLD_CM = 5.0 # 5 cm
+JUNCTION_SIZE = 0.1 
 FRONT_STOP_DIST = 9.0 # CM
-CRUISE_SPEED = 0.1
+CRUISE_SPEED = 0.1 # meter/s (fix)
+ROTATE_SPEED = 0.5 # rad/s (fix)
 SENSOR_MAX_CM = 40.0
-MERGE_RADIUS = 0.1 # Meters
+MERGE_RADIUS = 0.15 # Meters
 
 class MazeNode:
     def __init__(self, node_id, x, y):
@@ -87,9 +89,14 @@ class GraphMapper:
         junctions = []
         i = 0
         while i < len(stack) - 1:
-            if stack[i]['type'] == '(' and stack[i+1]['type'] == ')':
-                p1 = stack[i]['pos']
-                p2 = stack[i+1]['pos']
+
+            p1 = stack[i]['pos']
+            p2 = stack[i+1]['pos']
+            
+            junction_width = abs(p1-p2)
+            junction_width = max(junction_width[0],junction_width[1])
+
+            if stack[i]['type'] == '(' and stack[i+1]['type'] == ')' and junction_width > JUNCTION_SIZE:
                 mid = (p1 + p2) / 2.0
                 junctions.append({'x': mid[0], 'y': mid[1]})
                 i += 2
@@ -121,7 +128,7 @@ class GraphMapper:
         dy = target_node.y - ry
         dist = math.sqrt(dx*dx + dy*dy)
         
-        # Threshold: If we are within 5cm, don't waste time moving
+        # Threshold: If we are within 1cm, don't waste time moving
         if dist < 0.01:
             # print("   Already at node location.")
             return
@@ -130,27 +137,38 @@ class GraphMapper:
         target_angle_deg = math.degrees(target_angle_rad)
         
         # 3. Execute
-        self.robot.rotate_to_angle(target_angle_deg)
+        self.robot.rotate_to_angle(target_angle_deg, speed=ROTATE_SPEED)
         time.sleep(0.2)
-        self.robot.move_distance(dist,max_speed=CRUISE_SPEED)
+        self.robot.move_distance(dist, max_speed=CRUISE_SPEED)
         time.sleep(0.2)
 
     def travel_between_nodes(self, from_node, to_node):
         """Physically moves robot from known node to neighbor node."""
         print(f"   [Move] Node {from_node.id} -> Node {to_node.id}")
+
+
+        def get_dist(): 
+            dx = to_node.x - from_node.x
+            dy = to_node.y - from_node.y
+            dist = math.sqrt(dx*dx + dy*dy)
+            target_angle_rad = math.atan2(dy, dx)
+            target_angle_deg = math.degrees(target_angle_rad)
+
+            return dist, target_angle_deg
         
-        dx = to_node.x - from_node.x
-        dy = to_node.y - from_node.y
-        dist = math.sqrt(dx*dx + dy*dy)
-        target_angle_rad = math.atan2(dy, dx)
-        target_angle_deg = math.degrees(target_angle_rad)
+        dist, target_angle_deg = get_dist()
         
         # 1. Rotate
-        self.robot.rotate_to_angle(target_angle_deg)
+        self.robot.rotate_to_angle(target_angle_deg, speed=ROTATE_SPEED)
         time.sleep(0.5)
         
         # 2. Move
         self.robot.move_distance(dist, max_speed=CRUISE_SPEED)
+
+        # 3. Move to target node again to make sure that robot no the target node.
+        dist, target_angle_deg = get_dist()
+        if(dist > 0.1):
+            self.navigate_to_node(to_node)
 
         time.sleep(0.5)
 
@@ -197,19 +215,29 @@ class GraphMapper:
                 #     self.robot.set_velocity(CRUISE_SPEED, 0.0)
 
                 #     start_time = time.time()
+                
+                ir_dist = state.get('ir', 60)
+
+                # Kp = 0.001
+                # speed =  min((ir_dist - FRONT_STOP_DIST + 1) * Kp, CRUISE_SPEED)
+                # self.robot.set_velocity( speed, 0.0 )
+
+                self.robot.set_velocity( min((ir_dist/(2*FRONT_STOP_DIST)) * CRUISE_SPEED, CRUISE_SPEED), 0.0)
 
                 # Check Front Wall
-                if state.get('ir', 100) < FRONT_STOP_DIST:
+                if ir_dist < FRONT_STOP_DIST:
                     print("   Wall Hit. Stopping.")
                     hit_wall = True
-                    
-                    offset = FRONT_STOP_DIST+12.5 # 10
-                    # purple zone
-                    if ry > 1: 
-                        offset = FRONT_STOP_DIST+17.5
+                
+                    # offset = FRONT_STOP_DIST+10 # 10
+                    # # purple zone
+                    # if ry > 1: 
+                    #     offset = FRONT_STOP_DIST+17.5
+
+                    offset = FRONT_STOP_DIST + (15.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
 
                     rx_offset_cm = {'N': 0, 'E': offset, 'S': 0, 'W': -offset}
-                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset, 'W': 0}
+                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-1, 'W': 0}
 
                     # force add "(" after hit wall
                     end_rx = rx+(rx_offset_cm[self.current_heading]*0.01)
@@ -278,8 +306,8 @@ class GraphMapper:
             has_left = any(c['src'] == 'L' for c in cluster)
             has_right = any(c['src'] == 'R' for c in cluster)
             
-            if has_left: node.neighbors[left_dir] = "Unknown"
-            if has_right: node.neighbors[right_dir] = "Unknown"
+            if has_left: node.neighbors[left_dir] = "Unknown" if not node.neighbors[left_dir] else node.neighbors[left_dir] 
+            if has_right: node.neighbors[right_dir] = "Unknown" if not node.neighbors[right_dir] else node.neighbors[right_dir] 
                 
             # Link Backwards
             if prev_node:
@@ -287,6 +315,11 @@ class GraphMapper:
                 node.neighbors[self.get_opposite_dir(heading_char)] = prev_node
                 
             prev_node = node
+
+            '''
+            1. insert each node neighbors in "new_chain"
+            2. link each node together 
+            '''
             
         # --- DEAD END HANDLING ---
         # If no nodes found, we drove into a dead end. We MUST return to start.
@@ -335,6 +368,8 @@ class GraphMapper:
         
         # Priority: N, E, S, W (Standard)
         directions = ['N', 'W', 'S', 'E']
+        # directions = ['N', 'E', 'S', 'W']
+
         
         for direction in directions:
             # Check if this direction is unexplored
@@ -366,11 +401,12 @@ class GraphMapper:
                     for i in range(len(chain) - 1, -1, -1):
                         node_here = chain[i]
 
+                        self.navigate_to_node(node_here) # Ensure we are at this node
+
                         # skip already travel node
                         if(node_here in self.traveled_path):
                             continue
 
-                        self.navigate_to_node(node_here) # Ensure we are at this node
                         
                         # A. Run DFS on this node (handles side paths we skipped while driving past)
                         # Note: We are physically HERE now.
@@ -382,6 +418,8 @@ class GraphMapper:
                             return
                         self.traveled_path.pop()
                         self.last_visited_node = current_last_visited_node
+                        self.navigate_to_node(node_here) # Ensure we are at this node
+
 
                         # B. Move to previous node in chain (Backtrack step)
                         if i > 0:
@@ -392,16 +430,37 @@ class GraphMapper:
                             self.travel_between_nodes(node_here, current_node)
 
 
-    def traverse_back(self,path):
-        
+    def traverse_back(self, path : list[MazeNode] ):
+
         # print(path)
+        
+        global CRUISE_SPEED, ROTATE_SPEED
+
+        # Set travel speed
+        old_CRUISE_SPEED = CRUISE_SPEED
+        old_ROTATE_SPEED = ROTATE_SPEED
+        CRUISE_SPEED = 0.15
+        ROTATE_SPEED = 0.75
+        
+        # Set start node y axis offset
+        start_node_offset = 0.10
+        path[-1].y = path[-1].y + start_node_offset
 
         self.navigate_to_node(path[0])
+        
 
         for i in range(len(path)-1):
             current_node = path[i]
             next_node = path[i+1]
             self.travel_between_nodes(current_node, next_node)
+
+        # reverse value
+        CRUISE_SPEED = old_CRUISE_SPEED
+        ROTATE_SPEED = old_ROTATE_SPEED
+        path[-1].y = path[-1].y - start_node_offset
+
+        self.robot.rotate_to_angle(90)
+        
 
     def visualize_graph(self):
         print("\n--- GRAPH STATE ---")
