@@ -17,9 +17,9 @@ struct __attribute__((packed)) TelemetryPacket {
     int16_t theta;               // 2 bytes (rad * 10000)
     int16_t v;                   // 2 bytes (mm/s)
     int16_t w;                   // 2 bytes (rad/s * 1000)
-    uint16_t us_l;               // 2 bytes (mm)
-    uint16_t us_r;               // 2 bytes (mm)
-    uint16_t ir;                 // 2 bytes (mm)
+    uint16_t us_l;               // 2 bytes (cm)
+    uint16_t us_r;               // 2 bytes (cm)
+    uint16_t ir;                 // 2 bytes (cm)
     // Add dummy padding if alignment issues occur, currently 23 bytes
     uint8_t checksum;            // 1 byte (XOR of timestamp through ir)
 };

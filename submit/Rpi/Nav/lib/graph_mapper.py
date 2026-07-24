@@ -1,4 +1,14 @@
-''' GraphMapper Module
+''' 
+===============================================================================================================
+
+PHASE 2, 3  using in this script
+
+GraphMapper.explore_path() : method for exploring the Maze using vision localization (Phase 2) and creating node (Phase 3)
+GraphMapper.rundfs() : method for finding path to finish line (Phase 3)
+
+===============================================================================================================
+
+GraphMapper Module
     Implements Graph Mapping and DFS Exploration for a robot in a maze.
     Key Classes:
     - MazeNode: Represents a node in the maze graph.
@@ -24,13 +34,22 @@ from Vision.lib.camera_client import CameraClient
 
 
 # --- CONFIGURATION ---
+# WALL_THRESHOLD_CM   = 5.0   # 5 cm
+# JUNCTION_SIZE       = 0.11  # meters
+# FRONT_STOP_DIST     = 10.0  # CM 9.0 
+# CRUISE_SPEED        = 0.1   # meter/s (fix)
+# ROTATE_SPEED        = 0.5   # rad/s (fix)
+# SENSOR_MAX_CM       = 40.0  # CM
+# MERGE_RADIUS        = 0.15  # Meters 0.15 0.05
+# LOCAL_MERGE_RADIUS  = 0.01  # Meters
+
 WALL_THRESHOLD_CM   = 5.0   # 5 cm
 JUNCTION_SIZE       = 0.11  # meters
 FRONT_STOP_DIST     = 9.0   # CM
 CRUISE_SPEED        = 0.1   # meter/s (fix)
 ROTATE_SPEED        = 0.5   # rad/s (fix)
 SENSOR_MAX_CM       = 40.0  # CM
-MERGE_RADIUS        = 0.15  # Meters
+MERGE_RADIUS        = 0.15  # Meters 
 LOCAL_MERGE_RADIUS  = 0.01  # Meters
 
 class MazeNode:
@@ -216,6 +235,18 @@ class GraphMapper:
 
     def explore_path(self, heading_char):
         """
+
+        =================================
+        PHASE 2, 3 exist in this function
+                - vision
+                    - Distance to wall( camera to aruco tag )
+                    - Red object
+                    - aruco tag id == 5
+                - Graph constructing
+                    - create new nodes base on logic.
+        =================================
+
+
         Moves robot in 'heading_char' direction until wall.
         Detect wall by IR sensor and ArUco tag distance.
         Detect junctions on sides using side ultrasonic sensors.
@@ -262,6 +293,14 @@ class GraphMapper:
         prev_us_l = min(start_state.get('us_l', SENSOR_MAX_CM), SENSOR_MAX_CM)
         prev_us_r = min(start_state.get('us_r', SENSOR_MAX_CM), SENSOR_MAX_CM)
         
+
+        '''
+        ===========================================================================
+        PHASE 2:    - Vision for checking distance to the wall (robot to aruco tag).
+                    - Vision for checking Tag 5 and Red object.
+        ===========================================================================
+        '''
+
         # get nearest aruco distance that angle is within 45 degree
         markers = self.camera.get_all_marker()
         dist_nearest_tag = 999  
@@ -313,9 +352,14 @@ class GraphMapper:
                     hit_wall = True
 
                     # add some offset to end position to offset node creation
-                    offset = FRONT_STOP_DIST + (14.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
-                    rx_offset_cm = {'N': 0, 'E': offset, 'S': 0, 'W': -offset}
-                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-2, 'W': 0}
+                    offset = FRONT_STOP_DIST + (16.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
+                    rx_offset_cm = {'N': 0, 'E': offset+5, 'S': 0, 'W': -offset}
+                    ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset, 'W': 0}
+
+                    if FRONT_STOP_DIST == 9:
+                        offset = FRONT_STOP_DIST + (14.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
+                        rx_offset_cm = {'N': 0, 'E': offset, 'S': 0, 'W': -offset}
+                        ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-2, 'W': 0}
 
                     # force add ")" after hit wall
                     end_rx = rx+(rx_offset_cm[self.current_heading]*0.01)
@@ -342,6 +386,12 @@ class GraphMapper:
         self.robot.stop()
         time.sleep(0.5)
         
+        '''
+        ===========================================================================
+        PHASE 3:    - Solving and creating junction node
+        ===========================================================================
+        '''
+
         # ====== 3. process side sensors for junctions and create nodes ======
         # --- Process Logic ---
         raw_left = self.resolve_raw_junctions(self.left_stack)
@@ -417,6 +467,14 @@ class GraphMapper:
     # --- DFS ALGORITHM ---
     def run_dfs(self, current_node):
         """
+
+        =================================
+        PHASE 3 exist in this function
+                - Graph constructing
+                    - DFS logic travese along the Maze
+        =================================
+
+
         Recursive Depth First Search.
         1. Checks current node neighbors.
         2. If 'Unknown', explores them.
@@ -441,8 +499,10 @@ class GraphMapper:
             self.reach_goal = True
             return
         
-        # Priority: N, W, S, E (Standard)
+        # Priority: N, W, S, E
         directions = ['N', 'W', 'S', 'E']
+        # directions = ['N', 'E', 'S', 'W']
+
 
         # ====== Recursive Case : Explore Neighbors ======
         for direction in directions:

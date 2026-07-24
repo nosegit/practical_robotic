@@ -30,6 +30,17 @@ class GraphVisualizer:
         :param current_node: The MazeNode object where the robot currently is.
         :param title: String title for the plot.
         """
+
+        print("\n--- GRAPH STATE ---")
+        for n in all_nodes:
+            conns = []
+            for d, neighbor in n.neighbors.items():
+                if neighbor == "Unknown": val = "?"
+                elif neighbor is None: val = "X"
+                else: val = f"N{neighbor.id}"
+                conns.append(f"{d}:{val}")
+            print(f"Node {n.id}: {', '.join(conns)}")
+
         plt.clf()
         
         # --- LAYER 1: GROUND TRUTH (Background) ---
@@ -117,3 +128,4 @@ class GraphVisualizer:
                     elif heading == 'E': dx = stub
                     elif heading == 'W': dx = -stub
                     plt.plot([n.x, n.x+dx], [n.y, n.y+dy], 'g--', linewidth=1, zorder=2)
+

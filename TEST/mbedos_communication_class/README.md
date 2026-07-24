@@ -65,9 +65,9 @@ The Robot sends state data back to the Pi.
 | 9 | theta | int16_t | rad | 10000 | Global Heading |
 | 11 | v | int16_t | mm/s | 1000 | Current Linear Vel |
 | 13 | w | int16_t | rad/s | 1000 | Current Angular Vel |
-| 15 | us_l | uint16_t | mm | 1 | Ultrasonic Left |
-| 17 | us_r | uint16_t | mm | 1 | Ultrasonic Right |
-| 19 | ir | uint16_t | mm | 1 | Infrared Center |
+| 15 | us_l | uint16_t | cm | 1 | Ultrasonic Left |
+| 17 | us_r | uint16_t | cm | 1 | Ultrasonic Right |
+| 19 | ir | uint16_t | cm | 1 | Infrared Center |
 | 21 | CHECKSUM | uint8_t | - | XOR | XOR of bytes 1-20 |
 
 ### Python Unpack Format

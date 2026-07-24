@@ -1,0 +1,158 @@
+To understand how my file are orgranize and what they are please understand this file.
+README.md will give you more information about the project if you are able to open it.
+
+------------------------------------------------------------------------------------------------
+
+---------------------
+|Directory Structure|
+---------------------
+
+submit/
+├── README.md                    # Readme
+├── Rpi/
+│   ├── requirements.txt         # Python dependencies
+│   ├── Driver/                  # Low-level hardware control
+│   │   ├── lib/
+│   │   │   ├── robot_driver.py         # Serial communication with robot firmware
+│   │   │   └── robot_client.py         # High-level robot control client
+│   │   └── robot_service.py            # ZMQ service bridging driver ↔ clients
+│   │
+│   ├── Vision/                  # Computer vision & marker detection
+│   │   ├── lib/
+│   │   │   └── camera_client.py        # Vision data client (subscribes to camera server)
+│   │   ├── camera_server_vid.py        # Main camera server (ArUco + color detection)
+│   │   ├── camera_viewer.py            # Real-time video stream viewer
+│   │   └── lib/camera_calibration.py   # Camera intrinsic calibration tool
+│   │
+│   ├── Test/                    # Script for testing. ex, IR vs Aruco plot. 
+│   │
+│   └── Nav/                     # Navigation & maze exploration
+|       ├── demo_run.py                 # Demo of Main autonomous exploration script, 
+|       |                                   already have mimic robot_service and camera_server in the file.
+│       ├── run.py                      # Main autonomous exploration script
+│       └── lib/
+│           ├── graph_mapper.py         # DFS exploration & maze graph construction
+│           ├── graph_solver.py         # BFS pathfinding for shortest path
+│           └── graph_visualizer.py     # Matplotlib visualization of discovered map
+├── Arduino/                    # Arduino file
+
+------------------------------------------------------------------------------------------------
+
+------------------------------
+|Specific python dependencies|
+------------------------------
+**OpenCV 4.11.0.86**: for Aruco PoseEstimation using solvePnP method.
+you can create new python environment from requirements.txt. 
+DO NOT FOGOT TO INCLUDE "--system-site-packages" while creating env as there are libs related to PIcamera
+More detail in README.md
+
+------------------------------------------------------------------------------------------------
+
+-----------------------------------
+|Robot Software/firmware Structure|
+-----------------------------------
+Arduino - just upload PRBot.ino
+        - everything had written in OOP base.
+            - Sensor
+            - Odometry
+            - Motor
+            - Communication
+            - RobotState
+
+Raspberry pi - Consist of 3 main Node : 
+            - Driver/robot_service.py
+                -   This node is Publish/Subscribes and Request/Reply for communication with Low-level (Arduino)
+                -   Publish/subscribes service for streaming Low-level state at PORT: 5555
+                -   Request/Reply service for Client to command Robot (Low-level) velocity (lineat, angular) at PORT: 5556
+            - Vision/camera_server_vid.py
+                -   This node is Publisher that publish Detection data and JPEG video streaming from PIcamera
+                -   1st Publisher : publish Detection data as JSON at PORT: 5557
+                    - Shape detection
+                    - Aruco tag detection   
+                -   2nd Publisher : streaming video with detected overlay at PORT: 5558
+
+            - Nav/run.py
+                -   script that solving the maze using data from both Camere Node and Robot Node.
+                -   algorithm as discribed in presentation.
+
+*** To run the Robot ***
+    ** These 2 nodes need to be running.
+        - Driver/robot_service.py 
+        - Vision/camera_server_vid.py
+
+    Nav/run.py - to exploration the maze and get back to starting point.
+
+------------------------------------------------------------------------------------------------
+
+
+-------------
+|FOR GRADING|
+-------------
+
+
+suggestion: 
+`Nav/run.py` is the main function for the robot.
+start looking from this file.
+
+PHASE 2 : Vision
+    - Vision/camera_server_vid.py  :    - Implementation of Shape and Aruco detection.
+                                        - JPEG live stream of image with Detection overlay.
+    - Vision/camere_viewer.py      :    - Viewing live video streaming.
+    - Nav/lib/graph_mapper.py   :   - GraphMapper.explore_path() have some wall detection from Aruco distance.
+
+PHASE 3 : Navigation
+    - Nav/lib/graph_mapper.py   :   - GraphMapper class involving graph creation logic and DFS.
+
+PHASE 4 : Optimal Path
+    - Nab/lib/graph_solver.py   :   - BFS search for shorter parth.
+
+
+*** SIMULATION ***
+bypassing robot low-level and camera. instead of finding junction as new node.
+it will retrun node found in that exploration.
+No Service require to run. (mimic robot_service and camera_server_vid in demo script.)
+
+each time maze will be generate randomly
+    - size is configable in `Nav/lib/maze_generator` at the bottom line.
+
+```bash
+cd Rpi/Nav
+python demo_run.py
+```
+*** REAL ROBOT RUNNING ***
+Start 2 service and run exploring script.py should enough to run the robot.
+
+1. Start Hardware Driver & Service (on Raspberry Pi)
+
+```bash
+cd Rpi/Driver
+python robot_service.py
+```
+
+2. Start Vision Server (on Raspberry Pi with camera)
+
+```bash
+cd Rpi/Vision
+python camera_server_vid.py
+```
+
+3. Optional: View Live Camera Feed
+
+```bash
+cd Rpi/Vision
+python camera_viewer.py
+```
+
+4. Start Autonomous Exploration (on local machine or Pi)
+
+```bash
+cd Rpi/Nav
+python run.py
+```
+------------------------------------------------------------------------------------------------
+
+
+
+
+
+

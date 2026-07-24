@@ -1,4 +1,18 @@
 """
+===============================================================================================================
+
+PHASE 2, 3, 4 using in this script
+
+GraphMapper : Class for exploring the Maze using vision localization (Phase 2) and Navigation algorithm(Phase 3)
+GraphSolver : Class for finding shortest path (Phase 4)
+
+For implimentation take a look at both file
+GraphMapper : Nav/lib/grapy_mapper.py
+GraphSolver : Nav/lib/grave_solver.py
+
+===============================================================================================================
+
+
 Autonomous Maze Exploration & Navigation Script
 DFS explores entire reachable maze, then BFS finds shortest path back to start.
 
@@ -22,6 +36,14 @@ import time
 
 if __name__ == "__main__":
 
+    dfs_path = None
+    bfs_path = None
+
+    '''
+    ====================================
+    PHASE 3: Navigation through the MAZE
+    ====================================
+    '''
     # 1. Initialize GraphMapper and Start Node
     mapper = GraphMapper()
     start_node = mapper.create_node(0, 0)   # Initialize Start Node (Node 1) at (0,0)
@@ -48,6 +70,13 @@ if __name__ == "__main__":
             print("WARNING: Goal not reached during exploration.")
             exit(0)
 
+        dfs_path = mapper.traveled_path
+
+        '''
+        ===============================================
+        PHASE 4: Path optimization (find shortest path)
+        ===============================================
+        '''
         # 4. BFS to find shortest path back to start
         print("\n--- CALCULATING SHORTEST PATH BACK TO START (BFS) ---")
         solver = GraphSolver(mapper.all_nodes)
@@ -63,19 +92,20 @@ if __name__ == "__main__":
         reverse_path = bfs_path[::-1] # Reverse the BFS path for backtracking
         mapper.traverse_back(reverse_path)
 
-        print(f"DFS path : {[n.id for n in mapper.traveled_path]}")
-        print(f"BFS path : {bfs_path_ids}")
         
     except KeyboardInterrupt:
         print("Exploration Stopped.")
     finally:
+        
+        if(mapper.reach_goal): print(f"DFS path : {[n.id for n in dfs_path]}")
+        if(bfs_path): print(f"BFS path : {bfs_path_ids}")
 
         # 5. Visualize the mapped graph
         visualizer = GraphVisualizer()
         visualizer.visualize(
             all_nodes=mapper.all_nodes,
-            dfs_path=mapper.traveled_path,
-            bfs_path=bfs_path,
+            dfs_path=dfs_path if mapper.reach_goal else None,
+            bfs_path=bfs_path if mapper.reach_goal else None,
             title = "Final Mapped Graph After DFS Exploration"
         )
         plt.show()
