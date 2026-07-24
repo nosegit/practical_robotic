@@ -26,8 +26,8 @@ void ULTRASONIC::Falling_edge() {
   _TIMER.stop();
   // _DISTANCE = uSecToCM( std::chrono::duration_cast<std::chrono::microseconds>(_TIMER.elapsed_time()).count() );
   float current_dis = (float)std::chrono::duration_cast<std::chrono::microseconds>(_TIMER.elapsed_time()).count() * 0.01715;
-  // _DISTANCE = 0.9 * _DISTANCE + 0.1 * current_dis;
-  _DISTANCE = current_dis;
+  _DISTANCE = 0.7 * _DISTANCE + 0.3 * current_dis;
+  // _DISTANCE = current_dis;
   _FINISH_READING = 1;
 
 #if ENABLE_MEASUREMENT

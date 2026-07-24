@@ -61,14 +61,16 @@ float MOTOR::Get_speed(int motor){
   // float diff_t;
   unsigned long diff_t;
 
-
   switch(motor){
     case 0: 
       // _ENCODERA_TIMER.stop();
 
       // diff_t = duration_cast<microseconds>(_ENCODERA_TIMER.elapsed_time()).count();
       diff_t = micros()-_ENCODERA_TIMESTAMP_US;
-      _ENCODERA_SPEED = (float)(_ENCODERA_CNT-_ENCODERA_CNT_PREV)*1e6/diff_t;
+      float _ENCODERA_SPEED_RAW;
+      _ENCODERA_SPEED_RAW = (float)(_ENCODERA_CNT-_ENCODERA_CNT_PREV)*1e6/(float)diff_t;
+      _ENCODERA_SPEED = 0.8*_ENCODERA_SPEED + 0.2*_ENCODERA_SPEED_RAW;
+
 
       // _ENCODERA_TIMER.reset();
       // _ENCODERA_TIMER.start();
@@ -83,7 +85,7 @@ float MOTOR::Get_speed(int motor){
       // _ENCODERB_TIMER.stop();
       // diff_t = duration_cast<microseconds>(_ENCODERB_TIMER.elapsed_time()).count();
       diff_t = micros()-_ENCODERB_TIMESTAMP_US;
-      _ENCODERB_SPEED = (_ENCODERB_CNT-_ENCODERB_CNT_PREV)*1e6/diff_t;
+      _ENCODERB_SPEED = (float)(_ENCODERB_CNT-_ENCODERB_CNT_PREV)*1e6/(float)diff_t;
       // _ENCODERB_SPEED = (_ENCODERB_CNT-_ENCODERB_CNT_PREV);
 
 

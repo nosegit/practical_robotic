@@ -1,5 +1,6 @@
 #include "motor.h"
 #include <mbed.h>
+#include "Callback.h"
 
 #define MOTORDIRA       P0_4
 #define MOTORDIRB       P0_5
@@ -9,6 +10,10 @@
 #define MOTORENCODERB   P1_12
 
 MOTOR Motor(MOTORDIRA, MOTORPWMA, MOTORENCODERA, MOTORDIRB, MOTORPWMB, MOTORENCODERB);
+
+mbed::Ticker ticker;
+float Motor_speed[2];
+float myfloat;
 
 void setup() {
 
@@ -23,14 +28,21 @@ void setup() {
   //   delay(500);
   // }
 
-  motor_test_basic2();
-
   // motor_test_10_cm();
   // for(int i = 0 ; i < 4; i++){
   //   motor_test_90_degree();
   //   delay(500);
   // }
   // motor_test_single_revolution();
+
+
+  Motor.Set_dir(0, 0);
+  Motor.Set_dir(1, 0);
+
+  // Motor.Set_pwm(0, 20);
+
+  ticker.attach_us(get_motor_speed, 50e3); // 20hz
+
 
 }
 
@@ -41,6 +53,12 @@ void loop() {
   // Motor.Print_info();
 
   // motor_frequency_test();
+
+  print_motor_speed();
+
+  serialfloatin();
+  Motor.Set_pwm(0, myfloat);
+
 
 }
 
@@ -197,4 +215,31 @@ void motor_test_single_revolution(){
 
 }
 
+void get_motor_speed(){
+  Motor_speed[0] = Motor.Get_speed(0);
+  Motor_speed[1] = Motor.Get_speed(1);
+}
+
+void print_motor_speed(){
+  Serial.print("speed0:");
+  Serial.println(Motor_speed[0]);
+  Serial.print("speed1:");
+  Serial.println(Motor_speed[1]);
+
+}
+
+void serialfloatin(){
+  if (Serial.available() > 0) {
+    
+  // Read all characters until a newline ('\n') is received
+  String serialDataIn = Serial.readStringUntil('\n');
+
+  // Convert the received String to a float
+  myfloat = serialDataIn.toFloat();
+
+  // Print the float back to confirm it was stored correctly
+  Serial.print("You entered: ");
+  Serial.println(myfloat);
+  }
+}
 

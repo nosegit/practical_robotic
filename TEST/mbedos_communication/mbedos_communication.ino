@@ -18,8 +18,9 @@ rtos::Thread thread_sensor;
 void setup() {
   // put your setup code here, to run once:
 
-  // while (!Serial1);
-  Serial1.begin(9600);
+  while (!Serial);
+  Serial.begin(9600);
+  // Serial1.begin(9600);
 
   thread_sensor.start(Sensor_read);
 }
@@ -27,14 +28,14 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  Send_sensor_data();
+  // Send_sensor_data();
 
-  // Serial1.print("Infrared :");
-  // Serial1.print(Infrared.Get_distance());
-  // Serial1.print(", Ultrasonic0 :");
-  // Serial1.print(Ultrasonic[0].Get_distance());
-  // Serial1.print(", Ultrasonic1 :");
-  // Serial1.println(Ultrasonic[1].Get_distance());
+  Serial.print("Infrared :");
+  Serial.print(Infrared.Get_distance());
+  Serial.print(", Ultrasonic0 :");
+  Serial.print((int)Ultrasonic[0].Get_distance());
+  Serial.print(", Ultrasonic1 :");
+  Serial.println((int)Ultrasonic[1].Get_distance());
 
   // delay(100);
 }
