@@ -50,7 +50,7 @@ CRUISE_SPEED        = 0.1   # meter/s (fix)
 ROTATE_SPEED        = 0.5   # rad/s (fix)
 SENSOR_MAX_CM       = 40.0  # CM
 MERGE_RADIUS        = 0.15  # Meters 
-LOCAL_MERGE_RADIUS  = 0.01  # Meters
+LOCAL_MERGE_RADIUS  = MERGE_RADIUS  # Meters
 
 class MazeNode:
     def __init__(self, node_id, x, y):
@@ -357,7 +357,7 @@ class GraphMapper:
                     ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset, 'W': 0}
 
                     if FRONT_STOP_DIST == 9:
-                        offset = FRONT_STOP_DIST + (14.5 if self.current_heading == "N" or self.current_heading == "S" else 10)
+                        offset = FRONT_STOP_DIST + (14.5 if self.current_heading == "N" or self.current_heading == "S" else 10) # 10 12.5
                         rx_offset_cm = {'N': 0, 'E': offset, 'S': 0, 'W': -offset}
                         ry_offset_cm = {'N': offset, 'E': 0, 'S': -offset-2, 'W': 0}
 
