@@ -60,28 +60,46 @@ class RobotClient:
                 time.sleep(0.01)
         return state
 
-    def move_distance(self, distance_meters, speed=0.1):
+    def move_distance(self, distance_meters, max_speed=0.2):
+        """
+        Moves specific distance using P-Control for precision.
+        Slows down as it gets closer to target.
+        """
         print(f"Moving {distance_meters:.2f}m...")
         start_state = self._wait_for_valid_state()
         start_x, start_y = start_state['x'], start_state['y']
         
-        if distance_meters < 0:
-            distance_meters = abs(distance_meters)
-            speed = -abs(speed)
-        
-        self.set_velocity(speed, 0.0)
+        # P-Controller Gains
+        Kp = 2.0   # Speed = Error * Kp
+        MIN_SPEED = 0.01 # Minimum power to move motors
+        TOLERANCE = 0.005 # 1cm accuracy
+
+        target = abs(distance_meters)
+        direction = 1.0 if distance_meters > 0 else -1.0
 
         while True:
-            current_state = self._wait_for_valid_state()
-            dx = current_state['x'] - start_x
-            dy = current_state['y'] - start_y
+            curr = self._wait_for_valid_state()
+            dx = curr['x'] - start_x
+            dy = curr['y'] - start_y
             traveled = math.sqrt(dx*dx + dy*dy)
-
-            if traveled >= distance_meters:
+            
+            error = target - traveled
+            
+            if error <= TOLERANCE:
                 break
-            time.sleep(0.05)
+
+            # Proportional Speed Calculation
+            speed = error * Kp
+            
+            # Clamp Speed
+            speed = min(speed, max_speed)
+            speed = max(speed, MIN_SPEED)
+            
+            self.set_velocity(speed * direction, 0.0)
+            time.sleep(0.02)
 
         self.stop()
+        print(f"Move Complete. Error: {error:.4f}m")
 
     def rotate(self, angle_degrees, speed=0.5):
         print(f"Rotating {angle_degrees:.1f} degrees...")
